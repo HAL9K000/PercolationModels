@@ -31,12 +31,12 @@ int main() {
 
     cout << endl;
 
-	auto start = high_resolution_clock::now(); 
+	auto start = high_resolution_clock::now();
 
 	percolation_probabilities_dp(grid_size,p_start,p_end,divisions,number_of_census,lag);
 
-	auto stop = high_resolution_clock::now(); 
-	auto duration = duration_cast<seconds>(stop - start); 
+	auto stop = high_resolution_clock::now();
+	auto duration = duration_cast<seconds>(stop - start);
 
 	cout << endl << "CPU Time: " << duration.count() << " seconds" << endl;
 }

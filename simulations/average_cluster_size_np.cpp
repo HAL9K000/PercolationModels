@@ -5,8 +5,8 @@ int main(){
 	//OpenMP array reduce idiom.
 	//Source: https://stackoverflow.com/questions/20413995/reducing-on-array-in-openmp
 	//Credit: https://stackoverflow.com/users/2542702/z-boson
-	//Used with modification 
-	
+	//Used with modification
+
 	increase_stack_limit(64);
 
 	int grid_size;
@@ -36,11 +36,12 @@ int main(){
 
     cout << endl;
 
+<<<<<<< HEAD
     vector<double> birth_probabilities_np = linspace(p_start, p_end, divisions);
 
     float avg_cluster_size_np[divisions] = {0};
 
-    auto start = high_resolution_clock::now(); 
+    auto start = high_resolution_clock::now();
 
 	#pragma omp parallel
 	{
@@ -50,8 +51,8 @@ int main(){
 		for (int i=0; i < divisions; i++){
 
 			int seed = std::random_device{}();
-			rng.seed(seed); 
-			
+			rng.seed(seed);
+
 			float birth_probability_np = birth_probabilities_np[i];
 
 			avg_cluster_sizes_np_private[i] = average_cluster_size_np(grid_size, birth_probability_np, number_of_census,lag);
@@ -64,8 +65,8 @@ int main(){
 	    }
 	}
 
-	auto stop = high_resolution_clock::now(); 
-	auto duration = duration_cast<seconds>(stop - start); 
+	auto stop = high_resolution_clock::now();
+	auto duration = duration_cast<seconds>(stop - start);
 
 	for (int i=0; i< divisions; i++){
 		cout << "p: " << setprecision(3) << birth_probabilities_np[i] << " S: " << setprecision(3) << avg_cluster_size_np[i] << endl;

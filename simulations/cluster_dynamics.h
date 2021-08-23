@@ -1,5 +1,8 @@
 #include <iostream>
+#include <string>
 #include <stdlib.h>
+#include <stdio.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <cstdlib>
 #include <random>
