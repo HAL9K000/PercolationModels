@@ -8,6 +8,7 @@ int main() {
 	float p_start;
 	float p_end;
 	int divisions;
+	int r_init;
 	int number_of_census;
 	int lag;
 
@@ -23,7 +24,10 @@ int main() {
     cout << "Enter divisions: ";
     cin >> divisions;
 
-    cout << "Enter number of census: ";
+		cout << "Enter number of random trials for each value of p: ";
+    cin >> r_init;
+
+    cout << "Enter number of census (measurements taken in a given random trial for a given p): ";
     cin >> number_of_census;
 
     cout << "Enter lag in terms of frames: ";
@@ -33,7 +37,7 @@ int main() {
 
 	auto start = high_resolution_clock::now();
 
-	percolation_probabilities_dp(grid_size,p_start,p_end,divisions,number_of_census,lag);
+	theoretical_percolation_probabilities_dp(grid_size,p_start,p_end,divisions,r_init, number_of_census,lag);
 
 	auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<seconds>(stop - start);
