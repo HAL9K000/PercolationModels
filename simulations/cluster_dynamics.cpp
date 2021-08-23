@@ -24,7 +24,6 @@ float mean_of_array(float array[],int size){
 	return sum/(float)size;
 }
 
-
 float standard_deviation_of_array(float array[],int size){
 
 	float mean = mean_of_array(array,size);
@@ -75,34 +74,6 @@ void random_frame_of_density(float density, int frame[], int grid_size) {
     }
 }
 
-void solitary_droplet(int frame[], int grid_size)
-{
-  //A solitary droplet, lonesome tear crystallised in a lattice, spreading regret and loss.
-
-  for (int i = 0; i < grid_size; ++i)
-  {
-        for (int j = 0; j < grid_size; ++j)
-        {
-            frame[i*grid_size + j] = 0;
-        }
-  }
-  int numero_uno; //Stores index location of central position in frame
-
-  if(grid_size%2 == 0)
-  {
-    //Grid size is even.
-    numero_uno = (grid_size + 1)*grid_size/2;
-  }
-  else
-  {
-    //We can find an exact centre.
-    numero_uno = (grid_size + 1)*(grid_size-1)/2;
-  }
-  frame[numero_uno] = 1;
-
-}
-
-
 void zeros(int frame[], int grid_size) {
 
 	for (int i = 0; i < grid_size; ++i) {
@@ -126,28 +97,37 @@ float calculate_density(int frame[], int grid_size){
 	return density;
 }
 
-int number_of_elem_of_array(int frame[],int grid_size)
+f_coordinates calculate_SD(int frame[],int grid_size)
 {
-  float sum = 0.0;
+  //Returns tuple with mean and SD.
+  float mean = calculate_density(frame, grid_size);
+	float sum = 0.0;
 
-	for (int i =0; i<grid_size*grid_size; ++i)
-  {
-		sum += frame[i];
+	for (int i = 0; i < grid_size*grid_size; ++i){
+		sum += (frame[i]-mean)*(frame[i]-mean);
 	}
-  return sum;
+
+	float variance = sum/(float)(grid_size*grid_size);
+
+  f_coordinates mean_sd;
+  mean_sd.x = mean; mean_sd.y = sqrt(variance);
+
+	return mean_sd;
 }
 
 void increase_stack_limit(int stack_size){
 
+	//Source: https://stackoverflow.com/questions/2279052/increase-stack-size-in-linux-with-setrlimit
+	//Credit: https://stackoverflow.com/users/253056/paul-r
+	//Used with modification
+
 	// This becomes necessary for recursive depth first search when finding clusters.
 
-	const rlim_t kStackSize = 1024 * 1024 * 1024;   // min stack size = 16 MB
+	const rlim_t kStackSize = 64 * 1024 * 1024;   // min stack size = 16 MB
     struct rlimit rl;
     int result;
 
     result = getrlimit(RLIMIT_STACK, &rl);
-    cout << rl.rlim_max << endl;
-    cout << rl.rlim_cur << endl;
     if (result == 0)
     {
         if (rl.rlim_cur < kStackSize)
@@ -184,7 +164,7 @@ int disjoint_vectors(vector<int> vec_1, vector<int> vec_2){
 
 vector<int> common_elements(vector<int> vec_1, vector<int> vec_2){
 
-	//https://www.faceprep.in/c/check-if-the-given-arrays-are-disjoint-in-c-c-java-and-python-faceprep/
+	//Credits: https://www.faceprep.in/c/check-if-the-given-arrays-are-disjoint-in-c-c-java-and-python-faceprep/
 
 	//returns the unique common elements of two vectors
 
@@ -209,6 +189,10 @@ vector<int> common_elements(vector<int> vec_1, vector<int> vec_2){
 }
 
 template<typename T>std::vector<double> linspace(T start_in, T end_in, int num_in){
+
+	//Source: https://stackoverflow.com/questions/27028226/python-linspace-in-c/27030598#27030598
+	//Credits: https://stackoverflow.com/users/1078084/akavall
+
 
 	//Equivalent of numpy's linspace method.
 
@@ -386,90 +370,6 @@ void dp_update(int frame[], int grid_size, float birth_probability){
 	}
 }
 
-
-void tp_update(int frame[], int grid_size, float birth_probability, float feedback_strength)
-{
-
-	/* Performs single asynchronous update for TP at a randomly selected site on the lattice
-
-  Transitions take place as per the procedure delineated in LUBECK 2006.
-
-  A ---> 0     with probability (1-q)(1-p)
-  AA ---> 0A      with probability (1-q)(1-p) [Subcase of above]
-  0A ---> 00      with probability q(1-p)
-  0A ---> AA      with probability (1-q)(p)
-  0AA ---> AAA      with probability q
-
-  */
-
-	int x = random_int(0, grid_size-1);
-	int y = random_int(0, grid_size-1);
-
-	coordinates site;
-	site.x = x;
-	site.y = y;
-
-	if (frame[x*grid_size+y]==1)
-  { // selected site is occupied
-
-		coordinates neighbour = select_neighbor_of_site(site,grid_size);
-
-		if (frame[neighbour.x*grid_size+neighbour.y]==1)
-    { // neighbour of focal site is occupied. TCP like updates in this case
-
-			double chance = random_real(0, 1);
-      double another_chance = random_real(0, 1);
-
-			if (chance < feedback_strength)
-      {
-				coordinates neighbour_of_pair = select_neighbor_of_pair(site,neighbour,grid_size);
-				frame[neighbour_of_pair.x*grid_size+neighbour_of_pair.y] = 1; // birth at neighbour of pair with enhanced probability q
-			}
-			else if (another_chance < 1-birth_probability)
-      {
-
-				frame[x*grid_size+y]=0; // death at focal site with diminished death probability (1-q)(1-p)
-        /** AA ---> 0A      (1-q)(1-p) */
-			}
-    }
-    else
-    { // neighbour of focal site is unoccupied. We have the plain old DP, but with a fresh twist.
-
-
-			double chance = random_real(0, 1);
-      double another_chance = random_real(0, 1);
-
-			if (chance < 1 - feedback_strength)
-      {
-        if( another_chance < birth_probability)
-        {
-				      frame[neighbour.x*grid_size+neighbour.y] = 1; //birth at neighbour of occupied focal site with probability (1-q)*p
-              /** 0A ---> AA      (1-q)(p) */
-        }
-        else
-        {
-          frame[x*grid_size+y]=0; //Death at focal site with probability (1-q)(1-p)
-          /** A0 ---> 00      (1-q)(1-p)
-
-          When taken together with AA ---> 0A transition above, we collectively have the transition:
-           A ---> 0     with prob (1-q)(1-p)
-           This is the probability of the focal site becomes empty, irrespective of the status of it's neighbouring site.
-          */
-        }
-			}
-			else if( another_chance < 1 - birth_probability) //Chance < q
-      {
-				  frame[x*grid_size+y]=0; //Death at focal site with probability q(1-p)
-          /** 0A ---> 00      q(1-p) */
-			}
-		}
-
-	}
-}
-
-/** UPDATE RULES PROVIDED BY AYAN BEFORE:
-
-
 void tp_update(int frame[], int grid_size, float birth_probability, float feedback_strength){
 
 	// performs single asynchronous update for TP at a randomly selected site on the lattice
@@ -514,8 +414,6 @@ void tp_update(int frame[], int grid_size, float birth_probability, float feedba
 	}
 }
 
-*/
-
 void simulate_np(int frame[], int grid_size, float birth_probability, int updates_per_site){
 
 	// Takes a frame and simulates P for the specified number of updates per site with the specified birth probability
@@ -559,38 +457,32 @@ void simulate_tp(int frame[], int grid_size, float birth_probability, float feed
 	}
 }
 
-float equilibrium_density_dp(int grid_size, float birth_probability, int r_init, int number_of_census, int lag, int updates_per_site, int collect_frames){
+float equilibrium_density_dp(int grid_size, float birth_probability, int number_of_census, int lag, int updates_per_site, int collect_frames){
 
 	// Simulates DP with specified parameters and prints the mean and standard deviation of vegetation cover to the terminal. The frames from
 	// which vegetation cover is calculated can also be captured. Finally it returns the mean vegetation cover.
-  long limit = r_init*number_of_census;
-	float densities[limit];
+
+	float densities[number_of_census];
 	int frame[grid_size*grid_size];
-
-  for(int r=0; r< r_init; r++)
-  {
-
     random_frame(frame, grid_size);
 
     simulate_dp(frame,grid_size,birth_probability,updates_per_site);
 
-    for (int i=0; i<number_of_census; i++)
-    {
+    for (int i=0; i<number_of_census; i++) {
 
     	simulate_dp(frame,grid_size,birth_probability,lag);
-    	densities[r*r_init + i] = calculate_density(frame,grid_size);
+    	densities[i] = calculate_density(frame,grid_size);
 
     	if (collect_frames ==1){ // conditional for collecting frames
 
     		ofstream outdata;
 
-			stringstream p, rini, census, Lag;
+			stringstream p, census, Lag;
 			p << setprecision(3) << birth_probability;
-      rini << r;
 			census << i;
 			Lag << lag;
 
-			outdata.open("dump/dp_frame_"+std::to_string(grid_size)+"_"+p.str()+"_"+Lag.str()+'_'+census.str()+'_'+rini.str()+".txt");
+			outdata.open("dump/dp_frame_"+std::to_string(grid_size)+"_"+p.str()+"_"+Lag.str()+'_'+census.str()+".txt");
 			if( !outdata ) {
 				cerr << "File error, try again." << endl;
 				exit(1);
@@ -604,15 +496,12 @@ float equilibrium_density_dp(int grid_size, float birth_probability, int r_init,
 			outdata.close();
     	}
     }
-  }
 
-    float mean_density = mean_of_array(densities,limit);
-    float standard_deviation_density = standard_deviation_of_array(densities,limit);
+    float mean_density = mean_of_array(densities,number_of_census);
+    float standard_deviation_density = standard_deviation_of_array(densities,number_of_census);
 
     cout << endl;
-    stringstream message;     //To make cout thread-safe as well as non-garbled due to race conditions.
-    message << "p: " << setprecision(4) << birth_probability << " Mean: " << setprecision(5) << mean_density << " Standard Deviation: " << setprecision(7) << standard_deviation_density << endl;
-    cout << message.str();
+    cout << "p: " << setprecision(4) << birth_probability << " Mean: " << setprecision(2) << mean_density << " Standard Deviation: " << setprecision(4) << standard_deviation_density << endl;
     return mean_density;
 }
 
@@ -855,396 +744,6 @@ void find_patch_sizes_np(vector<int>& cluster_sizes,int grid_size, float birth_p
     }
 }
 
-bool sort_s_cluster(coordinates a, coordinates b)
-{ return a.y < b.y; // Returning smaller s value
-}
-
-vector<zd_coordinates> gen_ns_data(vector<coordinates>& cluster_details, double p)
-{
-  /*This function returns raw collected data (refer to "cluster_details" variable in the method below)
-  and sorts and returns that data in the format of (p, s, n_s(p)) */
-
-  vector<zd_coordinates> ns_data;
-  // Vector to return sorted data in the format of (p, s, n_s(p)).
-
-  //Sorting the cluster_details variable in ascending order of s.
-
-  sort(cluster_details.begin(), cluster_details.end(), sort_s_cluster);
-
-  //Finding max value of s (that is NOT spanning).
-
-  int s_max = cluster_details[cluster_details.size() -1].y;
-
-  int n_s=0; int s=1;
-  for(int i=0; i<cluster_details.size();i++)
-  {
-
-    if(cluster_details[i].y == s)
-    {
-      n_s+=1;
-    }
-    else if(cluster_details[i].y > s)
-    {
-      // Size has increased. Store n_s data.
-      zd_coordinates temp; //Creating temporary dummy variable to store present data.
-      temp.x = p; temp.y = static_cast<double>(s); temp.z = static_cast<double>(n_s);
-      ns_data.push_back(temp);
-
-      n_s=1; //Resetting counter to 1.
-      s= cluster_details[i].y;
-    }
-  }
-  //For largest s (that is not spanning cluster).
-
-  zd_coordinates temp; //Creating temporary dummy variable to store present data.
-  temp.x = p; temp.y = static_cast<double>(s); temp.z = static_cast<double>(n_s);
-  ns_data.push_back(temp);
-
-  return ns_data;
-
-}
-
-void tau_patch_size_find_np(int grid_size, vector<zd_coordinates>& tau_data, double p, int r_init, int number_of_census, int lag)
-{
-  // For a given value of p, generate "number_of_census" updates of static frames, each lag distance apart.
-
-  int frame[grid_size*grid_size];
-  //int r_init = 5; //Five random frames will be generated one after another.
-	//random_frame(frame, grid_size); // Initialize a random frame
-	int updates_per_site = 8000; // NP reaches steady state by 10000 for all values of p
-  //DP reaches steady state by 50000 for all values of p.
-  long limit = r_init*number_of_census;     //Stores the length of percolation_probabilities array necessary.
-	double percolation_probabilities[limit];
-
-	//simulate_np(frame,grid_size,birth_probability,updates_per_site); // simulate NP till it reaches steady state
-
-  //simulate_dp(frame,grid_size,birth_probability,updates_per_site);
-
-  for(int i = 0; i < r_init ; i++)
-  {
-    int seed = std::random_device{}();
-    rng.seed(seed);
-    random_frame(frame, grid_size); // Assign a random frame
-    simulate_dp(frame,grid_size,p,updates_per_site); // simulate NP till it reaches steady state
-
-    //simulate_dp(frame, grid_size, p, updates_per_site);
-
-    /*stringstream msg2;
-    msg2 << "Nuka\t" << i << "\t" << lag << "\t" << number_of_census << "\n";
-    cout << msg2.str(); */
-
-    // random_frame_of_density(p, frame, grid_size);
-    // Static percolation.
-
-    for (int j = 0; j < number_of_census; ++j)
-    {
-      float k=0; // Stores the percolation strength, if applicable.
-
-      //simulate_np(frame,grid_size,p,lag); // simulate NP for an average of (lag) number of update per site
-
-      simulate_dp(frame,grid_size,p,lag);
-
-      int labels[grid_size*grid_size] = {0}; // initialize all sites of label lattice to 0
-
-      vector<cluster> clusters; // See cluster_dynamics.h for the data structure cluster. It has two attributes: label and coords.
-
-      find_clusters_free_boundary(frame, labels, clusters, grid_size);
-      // Segregates clusters, populates labels lattice and accumulates clusters with free boundary conditions
-
-      vector<coordinates> cluster_details;
-      // Stores label id in x attribute, cluster size associated with label in 2nd coordinate.
-
-      vector<int> spanning_cluster_labels = spanning_cluster_label_id(frame, grid_size, labels, clusters);
-      //Returns labels of spanning cluster(s) if present, -1 otherwise.
-
-      /*stringstream msg5;
-      msg5 << "Nunia\t" << j << "\t" << lag << "\n";
-      cout << msg5.str(); */
-
-      //Purpose of following nested loops is to populate cluster_details following data structure noted above,
-      //minus the details of the spanning cluster(s).
-    	for (int a=0; a<clusters.size(); a++)
-      {
-          // There may exist a spanning cluster.
-          int flag=0; //Flag variable used to detect match with spanning cluster(s).
-          if(spanning_cluster_labels[0]> -1)
-          { //There exists a spanning cluster.
-            for (int b=0; b<spanning_cluster_labels.size(); b++)
-            {
-              //Iterating over spanning cluster(s) indices.
-              if(spanning_cluster_labels[b] == clusters[a].label)
-              { flag=1;}
-            }
-          }
-          if(flag == 0)
-          {
-            //No match of given cluster with spanning cluster.
-            coordinates temp; //Temporary x, y variable declared.
-            temp.x = clusters[a].label;
-            temp.y = clusters[a].coords.size();
-            cluster_details.push_back(temp);
-          }
-      }
-
-      double bok= i*number_of_census + j + 1; //Stores current trial number
-
-      if (static_cast<int>(bok)% 40 == 1)
-      {
-        //Every 25th term, the following  will be outputted to help with debugging.
-        stringstream message;     //To make cout thread-safe as well as non-garbled due to race conditions.
-        if(spanning_cluster_labels[0]> -1)
-        { message << "1st spanning clust size:\t" << clusters[spanning_cluster_labels[0]-1].coords.size() << "\t Num of spn clust:\t" << spanning_cluster_labels.size() << "\n";  }
-        else
-        { message << "No Spanning Cluster Present. \n"; }
-        cout << message.str();
-
-      }
-      zd_coordinates bokaro = {bok, p, p};
-      tau_data.push_back(bokaro);
-      //All "headers" seperating different trials have (tr #, p, p) values in place of (p, s, n_s)
-
-      vector<zd_coordinates> trail_data = gen_ns_data(cluster_details, p);
-      //Sorting cluster_details in ascending order of s, and outputting (p,s, n_s(p,s)) data from it.
-
-      tau_data.insert(tau_data.end(), trail_data.begin(), trail_data.end());
-
-      if (spanning_cluster_labels[0] != -1)
-      {
-        //Spanning cluster(s) present
-        for (int r =0 ; r < spanning_cluster_labels.size(); r++)
-        {
-          k += (float) clusters[spanning_cluster_labels[r]-1].coords.size();
-        }
-      }
-      bokaro.x = p; bokaro.y = -10.0; bokaro.z = k;
-      //Finally, storing details of spanning cluster at the very end as (p, -10, size_spn_cls)
-      // Here s= -10 is the marker for spanning cluster. If absent, k =0
-      tau_data.push_back(bokaro);
-
-      trail_data.clear(); clusters.clear(); spanning_cluster_labels.clear(); cluster_details.clear();
-
-
-    } //End of census for loop.
-
-  } //End of outer loop.
-
-  stringstream message;     //To make cout thread-safe as well as non-garbled due to race conditions.
-  message << "Length of tau_data for all trials at this given p:\t" << tau_data.size() << "\n";
-  cout << message.str();
-
-
-}
-
-void iter_patch_sizes_np(int grid_size, float p_start, float p_end, int divisions, int r_init, int number_of_census, int lag)
-{
-  /* This method will iteratively generate static cluster size (n_s(p)) distributions for all specified values
-  of p. The ultimate goal is to estimate the value of tau. */
-
-  //r_init =5;
-  // Number of random trials to be initiated for each p value
-
-  ofstream outputtau;
-  // Creating a file instance called output to store output data (for Tau exponent) as CSV.
-
-  std::vector<double> birth_probabilities = linspace(p_start, p_end, divisions);
-
-  stringstream peon, p_en, rini;
-
-  peon << setprecision(3) << p_start;
-  p_en << setprecision(3) << p_end;
-  // setprecision() is a stream manipulator that sets the decimal precision of a variable.
-  rini << r_init;
-  outputtau.open("CrtExp/Tau_SP_L_"+ std::to_string(grid_size) + "_p1_" + peon.str() + "_p2_" + p_en.str() + "_r_" + rini.str() + "_Cen_"+ std::to_string(number_of_census) + ".csv");
-  // Creating CSV file in "ACF" sub-directory to store output data
-
-  std::vector<zd_coordinates> vec;
-  //Will store ACF(t) data for every t <length for every division (trial) in order.
-  // First col stores p value, second the s value and the third the n_s value.
-
-  //The implementation below is obtain a order of percolation probabilities that shadows the order of birth_probabilities
-  #pragma omp parallel
-  {
-      std::vector<zd_coordinates> vec_private;
-
-      //Grants a static schedule with a chunk size of 1.
-      /* Based on procedure suggested in:
-      https://stackoverflow.com/questions/18669296/c-openmp-parallel-for-loop-alternatives-to-stdvector */
-
-      #pragma omp for nowait schedule(static)
-      for (int i=0; i < divisions; i++)
-      {
-
-        int seed = std::random_device{}();
-        rng.seed(seed);
-
-        std::vector<zd_coordinates> tau_data;
-
-        tau_patch_size_find_np(grid_size, tau_data, birth_probabilities[i], r_init, number_of_census, lag);
-        //Finds and stores ns(p) data in tau_data variable.
-
-        vec_private.insert(vec_private.end(), tau_data.begin(), tau_data.end());
-
-      }
-
-      #pragma omp for schedule(static) ordered
-      for(int i=0; i< omp_get_num_threads(); i++)
-      {
-        #pragma omp ordered
-          vec.insert(vec.end(), vec_private.begin(), vec_private.end());
-          // Inserting ACF data for each trial in order.
-      }
-  }
-  vector <vector<double>> output;
-  //Creating 2D vector.
-
-  double trialno =1;
-  for(int i=0; i <vec.size(); i++)
-  {
-    if(vec[i].x >= 1 && vec[i].z < 1)
-    {
-      //The above condition is only satisfied if vec[i] is a "header" row denoting separation b/w trials.
-      trialno = vec[i].x; //Setting to current trial number.
-    }
-    else
-    {
-      //Otherwise proceed to fill entry.
-      output.push_back({trialno, vec[i].x, vec[i].y, vec[i].z});
-    }
-  }
-
-  //Printing out obtained results.
-  cout << "The vector elements are: "<< endl;
-  cout << "# Tr No , p , s ,  ns(p)\n";
-  for (int i = 0; i < output.size(); i++)
-  {
-    cout << setprecision(3) << output[i][0] << "  " << setprecision(6) << output[i][1] << "  " << setprecision(8) << output[i][2] << "  " << setprecision(8) << output[i][3] << endl;
-  }
-
-  // Saving to aforementioned CSV
-
-  outputtau << "# Tr No , p , s , ns(p)\n";
-  for (int i = 0; i < output.size(); i++)
-  {
-    outputtau << setprecision(3) << output[i][0] << "," << setprecision(6) << output[i][1] << "," << setprecision(8) << output[i][2] << "," << setprecision(8) << output[i][3] << endl;
-  }
-  outputtau.close();
-
-}
-
-void tau_patch_size_find_tcp(int grid_size, vector<zd_coordinates>& tau_data, double p, double q, int r_init, int number_of_census, int lag)
-{
-  // For a given value of p, generate "number_of_census" updates of static frames, each lag distance apart.
-
-  int frame[grid_size*grid_size];
-	int updates_per_site = 100000; // NP reaches steady state by 100,000 for all values of p
-  //DP reaches steady state by 50000 for all values of p.
-  long limit = r_init*number_of_census;     //Stores the length of percolation_probabilities array necessary.
-	double percolation_probabilities[limit];
-
-	//simulate_np(frame,grid_size,birth_probability,updates_per_site); // simulate NP till it reaches steady state
-
-  //simulate_dp(frame,grid_size,birth_probability,updates_per_site);
-
-  for(int i = 0; i < r_init ; i++)
-  {
-    int seed = std::random_device{}();
-    rng.seed(seed);
-    random_frame(frame, grid_size); // Assign a random frame
-    simulate_tp(frame,grid_size,p, q, updates_per_site); // simulate TCP till it reaches steady state
-
-    for (int j = 0; j < number_of_census; ++j)
-    {
-      float k=0; // Stores the percolation strength, if applicable.
-
-      simulate_tp(frame,grid_size,p,q, lag);
-
-      int labels[grid_size*grid_size] = {0}; // initialize all sites of label lattice to 0
-
-      vector<cluster> clusters; // See cluster_dynamics.h for the data structure cluster. It has two attributes: label and coords.
-
-      find_clusters_free_boundary(frame, labels, clusters, grid_size);
-      // Segregates clusters, populates labels lattice and accumulates clusters with free boundary conditions
-
-      vector<coordinates> cluster_details;
-      // Stores label id in x attribute, cluster size associated with label in 2nd coordinate.
-
-      vector<int> spanning_cluster_labels = spanning_cluster_label_id(frame, grid_size, labels, clusters);
-      //Returns labels of spanning cluster(s) if present, -1 otherwise.
-
-      //Purpose of following nested loops is to populate cluster_details following data structure noted above,
-      //minus the details of the spanning cluster(s).
-    	for (int a=0; a<clusters.size(); a++)
-      {
-          // There may exist a spanning cluster.
-          int flag=0; //Flag variable used to detect match with spanning cluster(s).
-          if(spanning_cluster_labels[0]> -1)
-          { //There exists a spanning cluster.
-            for (int b=0; b<spanning_cluster_labels.size(); b++)
-            {
-              //Iterating over spanning cluster(s) indices.
-              if(spanning_cluster_labels[b] == clusters[a].label)
-              { flag=1;}
-            }
-          }
-          if(flag == 0)
-          {
-            //No match of given cluster with spanning cluster.
-            coordinates temp; //Temporary x, y variable declared.
-            temp.x = clusters[a].label;
-            temp.y = clusters[a].coords.size();
-            cluster_details.push_back(temp);
-          }
-      }
-
-      double bok= i*number_of_census + j + 1; //Stores current trial number
-
-      if (static_cast<int>(bok)% 40 == 1)
-      {
-        //Every 25th term, the following  will be outputted to help with debugging.
-        stringstream message;     //To make cout thread-safe as well as non-garbled due to race conditions.
-        if(spanning_cluster_labels[0]> -1)
-        { message << "1st spanning clust size:\t" << clusters[spanning_cluster_labels[0]-1].coords.size() << "\t Num of spn clust:\t" << spanning_cluster_labels.size() << "\n";  }
-        else
-        { message << "No Spanning Cluster Present. \n"; }
-        cout << message.str();
-
-      }
-      zd_coordinates bokaro = {bok, p, q};
-      tau_data.push_back(bokaro);
-      //All "headers" seperating different trials have (tr #, p, q) values in place of (p, s, n_s)
-
-      vector<zd_coordinates> trail_data = gen_ns_data(cluster_details, p);
-      //Sorting cluster_details in ascending order of s, and outputting (p,s, n_s(p,s)) data from it.
-
-      tau_data.insert(tau_data.end(), trail_data.begin(), trail_data.end());
-
-      if (spanning_cluster_labels[0] != -1)
-      {
-        //Spanning cluster(s) present
-        for (int r =0 ; r < spanning_cluster_labels.size(); r++)
-        {
-          k += (float) clusters[spanning_cluster_labels[r]-1].coords.size();
-        }
-      }
-      bokaro.x = p; bokaro.y = -10.0; bokaro.z = k;
-      //Finally, storing details of spanning cluster at the very end as (p, -10, size_spn_cls)
-      // Here s= -10 is the marker for spanning cluster. If absent, k =0
-      tau_data.push_back(bokaro);
-
-      trail_data.clear(); clusters.clear(); spanning_cluster_labels.clear(); cluster_details.clear();
-
-
-    } //End of census for loop.
-
-  } //End of outer loop.
-
-  stringstream message;     //To make cout thread-safe as well as non-garbled due to race conditions.
-  message << "Length of tau_data for all trials at this given p and q:\t" << tau_data.size() << "\n";
-  cout << message.str();
-
-
-}
-
 //------------------------------------Cluster Dynamics----------------------------------------//
 
 void find_neighbours_of_site(coordinates neighbours[4], coordinates site, int grid_size){
@@ -1271,6 +770,10 @@ void find_neighbours_of_site(coordinates neighbours[4], coordinates site, int gr
 }
 
 void depth_first_search(coordinates site, vector<int>& sites, int frame[], int labels[], int id, int grid_size){
+
+	//Source: https://stackoverflow.com/questions/22051069/how-do-i-find-the-connected-components-in-a-binary-image
+	//Credits: https://stackoverflow.com/users/2185825/shole
+	//Used with modification
 
 	// Recursively labels a cluster and accumulates its sites
 
@@ -1472,6 +975,202 @@ void find_transformations_single_shot(vector<transformation>& transformations,
     }
 }
 
+
+void find_transformations_multi_shot(vector<transformation>& transformations,
+	int previous_frame[], int previous_frame_labels[],vector<cluster>& previous_frame_clusters,
+	int current_frame[], int current_frame_labels[], vector<cluster>& current_frame_clusters, int grid_size){
+
+	// takes two consecutive frames with the difference of multiple update and finds the size of the cluster before and after the update.
+	// The change in size is the difference of these two cluster sizes.
+
+	int diff[grid_size*grid_size];
+	std::vector<int> changes;
+
+	for (int i=0; i<grid_size*grid_size; i++){ // scan the lattice to find the changes
+	    diff[i] = current_frame[i] - previous_frame[i];
+	    if (diff[i] != 0){
+	        changes.push_back(i); // collect the site at which the changes have occured
+	    }
+	}
+
+
+	if (changes.size()==0){ // exit function if no change has occured
+     	return;
+ 	}
+ 	else{
+
+     	std::vector<int> merge_current_frame;
+     	std::vector<int> split_previous_frame;
+
+      for(int k=0; k< changes.size(); k++)
+      {
+        //Iterating over all discerned changes, one by one.
+
+        if (diff[changes[k]]>0){ // the change was a birth
+
+          // it may have: a) created a cluster of size 1 b) caused a cluster of size n to become a cluster of size n+1 c) caused two or clusters to merge
+
+          if (!check_presence(merge_current_frame,current_frame_labels[changes[k]])){
+
+            // Condition is entered if focal cluster has not already been "merged" before in the current index sweep.
+
+            transformation transformation_merge; // See cluster_dynamics.h for the definition of the transformation structure
+
+            //merge_current_frame.push_back(current_frame_labels[changes[k]]); // add the merged label to focal cluster under consideration.
+
+            cluster focal_cluster = current_frame_clusters[current_frame_labels[changes[k]]-1]; // get the cluster to which the newly appeared site belongs
+
+            std::vector<int> comparison_clusters;
+
+            std::vector<int> finished_labels_comparison_clusters;
+
+            for (int j=0; j<focal_cluster.coords.size(); j++){ // loop through the sites of the focal cluster
+                if ((previous_frame_labels[focal_cluster.coords[j]] != 0)&&
+                   (!check_presence(finished_labels_comparison_clusters,previous_frame_labels[focal_cluster.coords[j]])))
+                    {
+
+                          // This is ultimatly a loop to determine the identities of the clusters in the previous frame whose site(s) overlapped
+                          // with the present focal cluster
+
+                        // conditional is entered if the label of the cluster in the previous frame at the site
+                        // corresponding to the current site of the focal cluster (from the current frame)
+                        // is absent in finished_labels_comparison_clusters
+
+                          finished_labels_comparison_clusters.push_back(previous_frame_labels[focal_cluster.coords[j]]);
+                          //add the label from the previous frame to finished_labels_comparison_clusters
+
+                          if(!check_presence(split_previous_frame, previous_frame_labels[focal_cluster.coords[j]]))
+                          {
+                            //Constituent clusters should not be part of a splitting event and...
+
+                            if(previous_frame_clusters[previous_frame_labels[focal_cluster.coords[j]]-1].coords.size() < focal_cluster.coords.size())
+                            {
+                              // ... they happen to be smaller than the focal cluster (which means there wasn't another splitting event)
+
+                              comparison_clusters.push_back(previous_frame_clusters[previous_frame_labels[focal_cluster.coords[j]]-1].coords.size());
+                              // add the cluster size from the previous frame to comparison_clusters
+                            }
+                          }
+
+                      }
+                  }
+
+                  //transformation transformation_merge; // See cluster_dynamics.h for the definition of the transformation structure
+
+                  if (comparison_clusters.size() == 0){ //This means the a cluster of size 1 has appeared.
+
+                      if(finished_labels_comparison_clusters.size() == 1)
+                      {
+                        if(!check_presence(split_previous_frame, finished_labels_comparison_clusters[0]))
+                        {
+                          //Indicates that a single cluster in the previous site has decreased in size to give rise to the current focal cluster.
+                          continue;
+                        }
+                      }
+
+                      transformation_merge.before = 0;
+                      transformation_merge.after = focal_cluster.coords.size();
+                      transformations.push_back(transformation_merge);
+
+                      merge_current_frame.push_back(current_frame_labels[changes[k]]); // add the merged label to focal cluster under consideration.
+
+                  }
+                  else { // This means that either a single constituent cluster has grown by a certain size or two or more clusters have merged.
+
+
+                    // If two or more clusters have merged we only consider the largest of the comparison clusters from the previous frame
+                    // (that satisfy additional criteria) as the cluster which has transformed to the single cluster in the current frame
+
+                      transformation_merge.before = *max_element(comparison_clusters.begin(), comparison_clusters.end());
+                      //finds the largest among the comparison clusters (smaller than focal cluster)
+                      transformation_merge.after = focal_cluster.coords.size();
+                      transformations.push_back(transformation_merge);
+
+                      merge_current_frame.push_back(current_frame_labels[changes[k]]);
+                      // add the merged label to focal cluster under consideration.
+
+                  }
+              }
+        }
+        else { // the change was a death
+
+          // it may have: a) removed a cluster of size 1 b) caused a cluster of size n to become a cluster of size n-1 c) caused two or clusters to split
+
+
+          if (!check_presence(split_previous_frame,previous_frame_labels[changes[k]])){
+
+            // conditional is entered if the focal(parent) cluster hasn't been labelled as "split" previously.
+
+            transformation transformation_primary_split; // See cluster_dynamics.h for the definition of the transformation structure
+
+            split_previous_frame.push_back(previous_frame_labels[changes[k]]); // add the label to finished labels of previous frame
+
+            cluster focal_cluster = previous_frame_clusters[previous_frame_labels[changes[k]]-1]; // get the cluster in the previous frame from which a site has disappeared
+
+            std::vector<int> comparison_clusters;
+
+                  std::vector<int> finished_labels_comparison_clusters;
+
+                  for (int j=0; j<focal_cluster.coords.size(); j++){ // loop through the sites of the focal cluster
+
+                    if ((current_frame_labels[focal_cluster.coords[j]] != 0)&&
+                      (!check_presence(finished_labels_comparison_clusters,current_frame_labels[focal_cluster.coords[j]]))){
+
+                      // conditional is entered if the label of the cluster in the current frame at the site
+                        // corresponding to the current site of the focal cluster (from the previous frame)
+                        // is absent in finished_labels_comparison_clusters
+
+                        finished_labels_comparison_clusters.push_back(current_frame_labels[focal_cluster.coords[j]]);
+                      //add the label from the current frame to finished_labels_comparison_clusters
+
+                      if(!check_presence(merge_current_frame, current_frame_labels[focal_cluster.coords[j]]))
+                      {
+                        // A check to ensure that the daughter cluster hasn't been labelled as "merged".
+
+                        if(current_frame_clusters[current_frame_labels[focal_cluster.coords[j]]-1].coords.size() < focal_cluster.coords.size())
+                        {
+                          //Split daughter cluster must be smaller than parent (focal) cluster.
+                          comparison_clusters.push_back(current_frame_clusters[current_frame_labels[focal_cluster.coords[j]]-1].coords.size());
+                          // add the cluster from the current frame to comparison_clusters
+                        }
+                      }
+
+                    }
+                  } //End loop of focal cluster to be split.
+
+                  //transformation transformation_primary_split; // See cluster_dynamics.h for the definition of the transformation structure
+
+                  if (comparison_clusters.size() == 0){ //This means the a cluster of size 1 has disappeared.
+
+                    if(finished_labels_comparison_clusters.size() == 1)
+                    {
+                      if(!check_presence(merge_current_frame, finished_labels_comparison_clusters[0]))
+                      {
+                      // Single daughter cluster must have increased in size without "merging" despite parent(focal) cluster having site deletion(s).
+                      continue;
+                      }
+                    }
+
+                    transformation_primary_split.before = focal_cluster.coords.size();
+                    transformation_primary_split.after = 0;
+                    transformations.push_back(transformation_primary_split);
+
+                  }
+          else { // This means that either a cluster has shrunk by size 1 or a cluster has split into two or more clusters
+
+            // If a cluster has split into two or more clusters we only consider the largest of the comparison clusters
+            //from the curernt frame as the cluster to which the single cluster from the previous frame has transformed.
+
+            transformation_primary_split.before = focal_cluster.coords.size();
+            transformation_primary_split.after = *max_element(comparison_clusters.begin(), comparison_clusters.end()); //finds the largest among the comparison clusters
+            transformations.push_back(transformation_primary_split);
+          }
+          }
+        }
+      }
+    }
+}
+
 void find_equilibrium_single_shot_transformations_np(int grid_size, float birth_probability, int time_to_equilibrium,
 	int how_many, vector<transformation>& transformations){
 
@@ -1591,8 +1290,8 @@ void find_equilibrium_single_shot_transformations_dp(int grid_size, float birth_
 	cout << endl << "Transformation Finding Time: " << duration.count() << " seconds" << endl;
 }
 
-void find_equilibrium_single_shot_transformations_tp(int grid_size, int divisions, int time_to_equilibrium,
-	int how_many, vector<transformation>& transformations, vector<f_coordinates>& pq)
+void find_equilibrium_multi_shot_transformations_DP(int grid_size, int divisions, int time_to_equilibrium,
+	int how_many, vector<transformation>& transformations, vector<f_coordinates>& pL)
 {
 
 	// Simulates TP for the specified parameters and collects the specified number of transformations from the steady state
@@ -1602,18 +1301,18 @@ void find_equilibrium_single_shot_transformations_tp(int grid_size, int division
   ofstream output_dels;
   // Creating a file instance called output to store output data as CSV.
 
-  stringstream peon, peoff, div, quint, quaffle, gangsta, tallaq;
+  stringstream peon, peoff, div, iaggo, guano, gangsta, tallaq;
 
-  peon << setprecision(4) << pq[0].x;
-  quint << setprecision(3) << pq[0].y;
+  peon << setprecision(4) << pL[0].x;
+  iaggo << setprecision(3) << pL[0].y;
   //p_en << setprecision(3) << p_end;
   // setprecision() is a stream manipulator that sets the decimal precision of a variable.
   div << divisions;
-  peoff << pq[divisions-1].x;
-  quaffle << pq[divisions-1].y;
+  peoff << pL[divisions-1].x;
+  guano << pL[divisions-1].y;
   gangsta << grid_size; tallaq << how_many;
 
-  output_dels.open("dump/TCP_delS_G_" + gangsta.str() + "_N_" + tallaq.str() + "_p1_" +  peon.str() + "_q1_" + quint.str() + "_Div_" + div.str() + "_p2_"+ peoff.str() + "_q2_"+ quaffle.str() + ".csv");
+  //output_dels.open("dump/DP_delS_G_" + gangsta.str() + "_N_" + tallaq.str() + "_p1_" +  peon.str() + "_lag1_" + iaggo.str() + "_Div_" + div.str() + "_p2_"+ peoff.str() + "_lag2_"+ guano.str() + ".csv");
 
 
   #pragma omp parallel
@@ -1639,19 +1338,20 @@ void find_equilibrium_single_shot_transformations_tp(int grid_size, int division
       random_frame(current_frame, grid_size); // initialize the current frame
     	zeros(current_frame_labels,grid_size); // initialize labels for the current frame
 
-    	simulate_tp(current_frame, grid_size, pq[i].x, pq[i].y, time_to_equilibrium); // simulate TP to reach steady state
+    	simulate_dp(current_frame, grid_size, pL[i].x, time_to_equilibrium); // simulate TP to reach steady state
 
       find_clusters(current_frame,current_frame_labels,current_frame_clusters,grid_size); // find clusters from the current frame
 
       vector<transformation> trans; //To be used in collecting |del s| data.
-      TCP_scattershot(trans, previous_frame, previous_frame_labels, previous_frame_clusters,
-  		current_frame, current_frame_labels, current_frame_clusters, grid_size, how_many, pq[i].x, pq[i].y);
-      // TCP_scattershot() is invaluable to completelting these simulations.
+
+      DP_scattershot(trans, previous_frame, previous_frame_labels, previous_frame_clusters,
+  		current_frame, current_frame_labels, current_frame_clusters, grid_size, how_many, pL[i].x, pL[i].y);
+      // DP_scattershot() is invaluable to completelting these simulations.
 
       for(int j=0; j<trans.size(); j++)
       {
         //Formatting trans data into a more appropriate format.
-        collateral.push_back({pq[i].x, pq[i].y, j, trans[j].before, trans[j].after});
+        collateral.push_back({grid_size, pL[i].x, pL[i].y, j, trans[j].before, trans[j].after});
         //Filled in as p, q, #, s, s + del(s).
       }
 
@@ -1669,57 +1369,53 @@ void find_equilibrium_single_shot_transformations_tp(int grid_size, int division
 
   }
 
+  cout << "|L, p , lag, # Tr No , s ,  s + del(s) |\n";
 
-
-	/* find_clusters(current_frame,current_frame_labels,current_frame_clusters,grid_size); // find clusters from the current frame
-
-	while (transformations.size() < how_many){ // loop till we have the specified number of transformations
-
-		for (int i=0; i<grid_size; i++){
-			for (int j=0; j<grid_size; j++){ // scan the current frame and duplicate it into the previous frame
-				previous_frame[grid_size*i+j] = current_frame[grid_size*i+j];
-				previous_frame_labels[grid_size*i+j] = current_frame_labels[grid_size*i+j];
-			}
-		}
-
-		previous_frame_clusters = current_frame_clusters; // duplicate the clusters too
-
-		tp_update(current_frame, grid_size, birth_probability, feedback_strength); // make a single update to the current frame
-
-		current_frame_clusters.clear(); // wash the stale clusters off the current frame (since it has been updated now)
-		zeros(current_frame_labels,grid_size); // wash the labels too
-
-		find_clusters(current_frame,current_frame_labels,current_frame_clusters,grid_size);
-		// find the clusters and labels of the current frame (after update) again
-
-		find_transformations_single_shot(transformations,
-			previous_frame, previous_frame_labels, previous_frame_clusters,
-			current_frame, current_frame_labels, current_frame_clusters, grid_size); // find the transformation and accumulate into the transformations vector
-	} */
-
-  cout << "| p , q, # Tr No , s ,  s + del(s) |\n";
-  output_dels << " p , q, # Tr No, s,  s + del(s) \n";
+  float p =pL[0].x; float trl_lag =pL[0].y; //Stores initial (p,lag) pair
+  stringstream pugalo; pugalo << setprecision(4) << p;
+  int chk= mkdir(("dump/"+pugalo.str()).c_str(), 0777);
+  cout << "Check:\t" << chk << " for:\t"<< pugalo.str() << endl;
+  output_dels.open("dump/"+pugalo.str()+"/DP_delS_G_" + gangsta.str() + "_N_" + tallaq.str() + "_p1_" +  pugalo.str() + "_lag1_" + iaggo.str() + "_Div_" + div.str() + ".csv");
+  output_dels << "#L, p , lag, # Tr No, s,  s + del(s) \n";
 
   for (int i = 0; i < vec.size(); i++)
   {
     if(i%3333 ==1)
     {
-    cout << setprecision(5) << vec[i][0] << "  " << setprecision(5) << vec[i][1] << "  " << setprecision(12) << vec[i][2] << "  " << setprecision(10) << vec[i][3] << "  " << setprecision(10) << vec[i][4] << endl;
+    cout << setprecision(5) << vec[i][0] << "  " << setprecision(5) << vec[i][1] << "  " << setprecision(8) << vec[i][2] << "  " << setprecision(12) << vec[i][3] << "  " << setprecision(10) << vec[i][4] << "  " << setprecision(10) << vec[i][5] << endl;
     }
   }
   // Saving to aforementioned CSV
 
   for (int i = 0; i < vec.size(); i++)
   {
-    output_dels << setprecision(8) << vec[i][0] << "," << setprecision(5) << vec[i][1] << "," << setprecision(12) << vec[i][2] << "," << setprecision(11) << vec[i][3] << "," << setprecision(11) << vec[i][4]  << endl;
+    if(vec[i][2] != trl_lag)
+    {
+      //lag has changed.
+      trl_lag = vec[i][2];
+      if(vec[i][1] > p)
+      {
+        //p has also changed
+        p =vec[i][1];
+        pugalo.str(std::string()); pugalo.clear(); //CLearing contents of stringstream pugalo
+        pugalo << setprecision(4) << p;
+        chk = mkdir(("dump/"+pugalo.str()).c_str(), 0777);
+        cout << "Check:\t" << chk << " for:\t"<< pugalo.str() << endl;
+      }
+      output_dels.close();
+      output_dels.open("dump/"+pugalo.str()+"/DP_delS_G_" + gangsta.str() + "_N_" + tallaq.str() + "_p1_" +  pugalo.str() + "_lag1_" + std::to_string(trl_lag) + "_Div_" + div.str() + ".csv");
+      output_dels << "#L, p , lag, # Tr No, s,  s + del(s) \n";
+    }
+
+    output_dels << setprecision(5) << vec[i][0] << "," << setprecision(6) << vec[i][1] << "," << setprecision(8) << vec[i][2] << "," << setprecision(12) << vec[i][3] << "," << setprecision(12) << vec[i][4] << "," << setprecision(12) << vec[i][5] << endl;
   }
   output_dels.close();
 
 
 }
 
-void TCP_scattershot(vector <transformation>& trans, int previous_frame[], int previous_frame_labels[], vector<cluster>& previous_frame_clusters,
-int current_frame[], int current_frame_labels[], vector<cluster>& current_frame_clusters, int grid_size, int how_many, double p, double q)
+void DP_scattershot(vector <transformation>& trans, int previous_frame[], int previous_frame_labels[], vector<cluster>& previous_frame_clusters,
+int current_frame[], int current_frame_labels[], vector<cluster>& current_frame_clusters, int grid_size, int how_many, double p, double lag)
 {
 
   auto start = high_resolution_clock::now();
@@ -1736,7 +1432,11 @@ int current_frame[], int current_frame_labels[], vector<cluster>& current_frame_
 
 		previous_frame_clusters = current_frame_clusters; // duplicate the clusters too
 
-		tp_update(current_frame, grid_size, p, q); // make a single update to the current frame
+
+    for(int i=0; i< lag; i++)
+	  {
+      dp_update(current_frame, grid_size, p); // make a single update to the current frame
+    }
 
 		current_frame_clusters.clear(); // wash the stale clusters off the current frame (since it has been updated now)
 		zeros(current_frame_labels,grid_size); // wash the labels too
@@ -1744,7 +1444,7 @@ int current_frame[], int current_frame_labels[], vector<cluster>& current_frame_
 		find_clusters(current_frame,current_frame_labels,current_frame_clusters,grid_size);
 		// find the clusters and labels of the current frame (after update) again
 
-		find_transformations_single_shot(trans,
+		find_transformations_multi_shot(trans,
 			previous_frame, previous_frame_labels, previous_frame_clusters,
 			current_frame, current_frame_labels, current_frame_clusters, grid_size); // find the transformation and accumulate into the transformations vector
 	}
@@ -1752,11 +1452,67 @@ int current_frame[], int current_frame_labels[], vector<cluster>& current_frame_
   auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<seconds>(stop - start);
 
-  stringstream msg; msg << "For (p,q) pair values as:\t(" << setprecision(6) << p << setprecision(5) << q << ")\t Transformation Finding Time: " << duration.count() << " seconds" << endl;
+  stringstream msg; msg << "For (p,lag) pair values as:\t(" << setprecision(6) << p << " , " << setprecision(8) << lag << ")\t Transformation Finding Time: " << duration.count() << " seconds" << endl;
 
   cout << msg.str();
 
   return; //Exit method once desired number of |del s| values have been collected.
+}
+
+void find_equilibrium_single_shot_transformations_tp(int grid_size, float birth_probability, float feedback_strength, int time_to_equilibrium,
+	int how_many, vector<transformation>& transformations){
+
+	// Simulates TP for the specified parameters and collects the specified number of transformations from the steady state
+
+	int seed = std::random_device{}();
+	rng.seed(seed);
+
+
+	int previous_frame[grid_size*grid_size];
+	int previous_frame_labels[grid_size*grid_size];
+	vector<cluster> previous_frame_clusters;
+
+	int current_frame[grid_size*grid_size];
+	int current_frame_labels[grid_size*grid_size];
+	vector<cluster> current_frame_clusters;
+
+	random_frame(current_frame, grid_size); // initialize the current frame
+	zeros(current_frame_labels,grid_size); // initialize labels for the current frame
+
+	simulate_tp(current_frame, grid_size, birth_probability, feedback_strength, time_to_equilibrium); // simulate TP to reach steady state
+
+	auto start = high_resolution_clock::now();
+
+	find_clusters(current_frame,current_frame_labels,current_frame_clusters,grid_size); // find clusters from the current frame
+
+	while (transformations.size() < how_many){ // loop till we have the specified number of transformations
+
+		for (int i=0; i<grid_size; i++){
+			for (int j=0; j<grid_size; j++){ // scan the current frame and duplicate it into the previous frame
+				previous_frame[grid_size*i+j] = current_frame[grid_size*i+j];
+				previous_frame_labels[grid_size*i+j] = current_frame_labels[grid_size*i+j];
+			}
+		}
+
+		previous_frame_clusters = current_frame_clusters; // duplicate the clusters too
+
+		tp_update(current_frame, grid_size, birth_probability, feedback_strength); // make a single update to the current frame
+
+		current_frame_clusters.clear(); // wash the stale clusters of the current frame (since it has been updated now)
+		zeros(current_frame_labels,grid_size); // wash the labels too
+
+		find_clusters(current_frame,current_frame_labels,current_frame_clusters,grid_size);
+		// find the clusters and labels of the current frame (after update) again
+
+		find_transformations_single_shot(transformations,
+			previous_frame, previous_frame_labels, previous_frame_clusters,
+			current_frame, current_frame_labels, current_frame_clusters, grid_size); // find the transformation and accumulate into the transformations vector
+	}
+
+	auto stop = high_resolution_clock::now();
+	auto duration = duration_cast<seconds>(stop - start);
+
+	cout << endl << "Transformation Finding Time: " << duration.count() << " seconds" << endl;
 }
 
 // -----------------------------------This and That ------------------------------------------------//
@@ -1819,6 +1575,10 @@ void find_neighbours_of_site_free_boundary(coordinates neighbours[4], coordinate
 }
 
 void depth_first_search_free_boundary(coordinates site, vector<int>& sites, int frame[], int labels[], int id, int grid_size){
+
+	//Source: https://stackoverflow.com/questions/22051069/how-do-i-find-the-connected-components-in-a-binary-image
+	//Credits: https://stackoverflow.com/users/2185825/shole
+	//Used with modification
 
 	// Recursively labels a cluster and accumulates its sites
 	// Similar to depth first search but with free boundary conditions
@@ -1986,8 +1746,7 @@ vector<int> spanning_cluster_coordinates(int frame[], int grid_size){
 		}
 	}
 
-	if (is_spanning_horizontal(frame,grid_size))
-  { // conditional to check if the frame has a cluster that spans the lattice horizontally
+	if (is_spanning_horizontal(frame,grid_size)){ // conditional to check if the frame has a cluster that spans the lattice horizontally
 
 		vector<int> spanning_cluster_label = common_elements(left, right); // label of the horizontally spanning cluster which must be present in both left and right
 
@@ -2117,7 +1876,7 @@ float how_many_red_sites(int frame[], int grid_size){
 
 float find_average_cluster_size(int frame[], int grid_size){
 
-	// Returns the average cluster size of the frame (minus size of percolating cluster if any).
+	// Returns the average cluster size of the frame
 
 	int labels[grid_size*grid_size] = {0}; // initialize all sites of label lattice to 0
 	vector <cluster> clusters;
@@ -2127,48 +1886,20 @@ float find_average_cluster_size(int frame[], int grid_size){
 
 	vector<float> cluster_sizes; // See cluster_dynamics.h for the data structure cluster. It has two attributes: label and coords.
 
-  vector<int> spanning_cluster_labels = spanning_cluster_label_id(frame, grid_size, labels, clusters);
-  //Stores list of spanning cluster IDs, -1 otherwise (if no spanning clusterfuck present).
-
-  // The following loop will populate "cluster_sizes" with all cluster sizes other than the spanning cluster.
-	for (int i=0; i<clusters.size(); i++)
-  {
-
-    // There may exist a spanning cluster.
-    int flag=0; //Flag variable used to detect match with spanning cluster(s).
-    if(spanning_cluster_labels[0]> -1)
-    { //There exists a spanning cluster.
-      for (int j=0; j<spanning_cluster_labels.size(); j++)
-      {
-        //Iterating over spanning cluster(s) indices.
-        if(spanning_cluster_labels[j] == clusters[i].label)
-        { flag=1;}
-      }
-    }
-    if(flag == 0)
-    {
-      //No match of given cluster with spanning cluster.
-      cluster_sizes.push_back((float)clusters[i].coords.size()); // accumulate the cluster sizes
-    }
+	for (int i=0; i<clusters.size(); i++){
+		cluster_sizes.push_back((float)clusters[i].coords.size()); // accumulate the cluster sizes
 	}
-  /* for (int i=0; i<cluster_sizes.size(); i++)
-  {
-    stringstream msg3;
-    msg3 << setprecision(4) << cluster_sizes[i] << "\t";
-    cout << msg3.str();
-    if (i == cluster_sizes.size() -1)
-    {
-      stringstream msg4;
-      msg4 << "\n";
-      cout << msg4.str();
-    }
-  } */
+
+	if (is_spanning(frame,grid_size)){ // conditional to check and remove the spanning cluster from cluster sizes
+
+		vector<int> spanning_cluster_coords =  spanning_cluster_coordinates(frame, grid_size); // find coordinates of the spanning cluster
+		int largest_cluster = spanning_cluster_coords.size(); // size of the spanning cluster
+		cluster_sizes.erase(std::remove(cluster_sizes.begin(), cluster_sizes.end(), largest_cluster), cluster_sizes.end());
+		// remove size of the spanning cluster from cluster sizes
+
+	}
 
 	float average_cluster_size = mean_of_vector(cluster_sizes,cluster_sizes.size()); // find the average of the cluster sizes
-
-  /*stringstream msg5;
-  msg5 << "Average Cluster Size For This Census: " << setprecision(6) << average_cluster_size << "\n";
-  cout << msg5.str();*/
 	return average_cluster_size;
 }
 
@@ -2202,7 +1933,6 @@ float percolation_probability_np(int grid_size, float birth_probability, int num
 
 	return percolation_probability;
 }
-
 
 float percolation_probability_dp(int grid_size, float birth_probability, int number_of_census, int lag){
 
@@ -2245,13 +1975,18 @@ float percolation_probability_dp(int grid_size, float birth_probability, int num
 
 void percolation_probabilities_np(int grid_size, float p_start, float p_end, int divisions, int number_of_census, int lag){
 
+	//OpenMP array reduce idiom.
+	//Source: https://stackoverflow.com/questions/20413995/reducing-on-array-in-openmp
+	//Credit: https://stackoverflow.com/users/2542702/z-boson
+	//Used with modification
+
 	// Find percolation probabilities for NP over a range of value of p by running parallel simulations
 
 	vector<double> birth_probabilities = linspace(p_start, p_end, divisions); // create a vector of specified values of p
 
 	float percolation_probabilities[divisions] = {0}; // initialize percolation probabilities
 
-	#pragma omp parallel // The implementation below is obtain a order of percolation probabilities that shadows the order of birth_probabilities
+	#pragma omp parallel // The implementation below is to obtain an order of percolation probabilities that shadows the order of birth_probabilities
 	{
 	    float percolation_probabilities_private[divisions] = {0};
 
@@ -2278,6 +2013,11 @@ void percolation_probabilities_np(int grid_size, float p_start, float p_end, int
 }
 
 void percolation_probabilities_dp(int grid_size, float p_start, float p_end, int divisions, int number_of_census, int lag){
+
+	//OpenMP array reduce idiom.
+	//Source: https://stackoverflow.com/questions/20413995/reducing-on-array-in-openmp
+	//Credit: https://stackoverflow.com/users/2542702/z-boson
+	//Used with modification
 
 	// Find percolation probabilities for DP over a range of value of p by running parallel simulations
 
@@ -2311,62 +2051,25 @@ void percolation_probabilities_dp(int grid_size, float p_start, float p_end, int
 	}
 }
 
-void average_cluster_size_np(int grid_size, vector<zd_coordinates> &avg_clust_size, float birth_probability,int r_init, int number_of_census, int lag){
+float average_cluster_size_np(int grid_size, float birth_probability, int number_of_census, int lag){
 
 	int frame[grid_size*grid_size];
 	random_frame(frame, grid_size); // Initialize a random frame
 	int updates_per_site = 10000; // NP reaches steady state by 10000 for all values of p
-  int limit = r_init*number_of_census;
-	float average_cluster_size[limit];
+	float average_cluster_size[number_of_census];
 
-  for (int i=0; i< r_init; i++)
-  {
-    int seed = std::random_device{}();
-    rng.seed(seed);
-    random_frame(frame, grid_size); // Initialize a random frame
-    //simulate_np(frame,grid_size,birth_probability,updates_per_site);
-    // simulate NP till it reaches steady state
-    random_frame_of_density(birth_probability, frame, grid_size);
-    for (int j=0; j<number_of_census; j++)
-    {
 
-     	//simulate_np(frame,grid_size,birth_probability,lag); // simulate NP for an average of (lag) number of update per site
-     	average_cluster_size[i*number_of_census+ j] = find_average_cluster_size(frame, grid_size); // find the average cluster size of the current frame
+	simulate_np(frame,grid_size,birth_probability,updates_per_site); // simulate NP till it reaches steady state
+
+
+    for (int i=0; i<number_of_census; i++) {
+
+     	simulate_np(frame,grid_size,birth_probability,lag); // simulate NP for an average of (lag) number of update per site
+     	average_cluster_size[i] = find_average_cluster_size(frame, grid_size); // find the average cluster size of the current frame
 
     }
-  }
-  float k = mean_of_array(average_cluster_size,limit);
-  stringstream msg;
-  msg << "For p:  " << setprecision(4) << birth_probability << " S(p):  " << k << "\n";
-  cout << msg.str();
 
-  /*for (int i=0; i< limit; i++)
-  {
-    stringstream msg2;
-    msg2 << setprecision(4) << average_cluster_size[i] << "\t";
-    cout << msg2.str();
-    if (i == limit -1)
-    {
-      stringstream msg4;
-      msg4 << "\n";
-      cout << msg4.str();
-    }
-  }*/
-
-  for (int i=0; i< limit; i++)
-  {
-    zd_coordinates temp; //Creating a temporary variable.
-    int trl_no = i % number_of_census + 1; int r_no = int(i/number_of_census);
-    temp.x = r_no*number_of_census + trl_no;
-    temp.y = birth_probability;
-    temp.z = average_cluster_size[i];
-    avg_clust_size.push_back(temp);
-
-  }
-
-  //return avg_clust_size;
-
-  //return mean_of_array(average_cluster_size,limit);
+    return mean_of_array(average_cluster_size,number_of_census);
 }
 
 float average_cluster_size_dp(int grid_size, float birth_probability, int number_of_census, int lag){
@@ -2379,8 +2082,7 @@ float average_cluster_size_dp(int grid_size, float birth_probability, int number
 	if (birth_probability>0.65){
 		updates_per_site = 25000; // DP reaches steady state by 25000 for all values of p > 0.65
 	}
-	else
-  {
+	else{
 		updates_per_site = 100000; // close to the critical point, dynamics are slow.
 	}
 
@@ -2400,1665 +2102,187 @@ float average_cluster_size_dp(int grid_size, float birth_probability, int number
     return mean_of_array(average_cluster_size,number_of_census);
 }
 
+//---------------------------Correlation Function-----------------------------------------------//
 
-
-// ----------------- Methods unique to theoretical calculation of Percolation Point For NP Model---------------------------------
-
-
-int size_spanning_vertical(int frame[], int grid_size)
+zd_coordinates crosscorrelation_2D(int frame1[], int frame2[], int grid_size)
 {
-	// Returns size (i.e. number of nodes) of all the clusters spans the lattice vertically, 0 otherwise.
+    float croscolmatr[2*grid_size -1][2*grid_size -1];
 
-  vector<int> up;  // empty vector to store upper border
-  vector<int> down;  // empty vector to store bottom border
-  vector<int> commonality; //empty vector to store the common cluster labels present on both the upper and bottom margins
+    //float rho1 = calculate_density(frame1, grid_size);
+    //float rho2 = calculate_density(frame2, grid_size);
+    f_coordinates rho_sig1 = calculate_SD(frame1, grid_size);
+    f_coordinates rho_sig2 = calculate_SD(frame2, grid_size);
 
-  int labels[grid_size*grid_size] = {0}; // initialize all sites of label lattice to 0
+    int k_min, k_max, l_min, l_max;
+    k_min = l_min = -(grid_size -1);
+    k_max = l_max = grid_size -1;
 
-  int spanning_cluster_size=0;
-
-  vector<cluster> clusters; // See cluster_dynamics.h for the data structure cluster. It has two attributes: label and coords.
-
-  find_clusters_free_boundary(frame, labels, clusters, grid_size);
-  // Segregates clusters, populates labels lattice and accumulates clusters with free boundary conditions
-
-
-  for (int i = 0; i<grid_size; i++){ // loop to populate up and down
-
-    if (labels[i] != 0){
-      up.push_back(labels[i]);
-    }
-
-    if (labels[grid_size*(grid_size-1)+i] != 0){
-      down.push_back(labels[grid_size*(grid_size-1)+i]);
-    }
-  }
-
-  commonality = common_elements(up, down); // Returns a unique list of the common cluster labels on both the upper and lower borders.
-
-  if (commonality.size() > 0)
-  {
-    //Vertically spanning clusters exist.
-
-    for (int i=0; i < commonality.size(); i++)
+    for(int k= k_min; k <= k_max; k++)
     {
-      // Looping through common cluster labels.
-
-      spanning_cluster_size += clusters[commonality[i]-1].coords.size();
-
-      // Storing values of number of sites belonging to spanning cluster.
-
-    }
-
-    return spanning_cluster_size;
-
-  }
-  else
-  {
-    return 0;
-  }
-}
-
-int size_spanning_horizontal(int frame[], int grid_size)
-{
-	// Returns size (i.e. number of nodes) of all the clusters spans the lattice horizontally, 0 otherwise.
-
-  vector<int> left;  // empty vector to store left border
-  vector<int> right;  // empty vector to store right border
-  vector<int> commonality; //empty vector to store the common cluster labels present on both the upper and bottom margins
-
-  int labels[grid_size*grid_size] = {0}; // initialize all sites of label lattice to 0
-
-  int spanning_cluster_size=0;
-
-  vector<cluster> clusters; // See cluster_dynamics.h for the data structure cluster. It has two attributes: label and coords.
-
-  find_clusters_free_boundary(frame, labels, clusters, grid_size);
-  // Segregates clusters, populates labels lattice and accumulates clusters with free boundary conditions
-
-
-  for (int i = 0; i<grid_size; i++){ // loop to populate up and down
-
-    if (labels[grid_size*i] != 0){
-      left.push_back(labels[grid_size*i]);
-    }
-
-    if (labels[grid_size*(i) + grid_size-1] != 0){
-      right.push_back(labels[grid_size*(i) + grid_size-1]);
-    }
-  }
-
-  commonality = common_elements(left, right); // Returns a unique list of the common cluster labels on both the upper and lower borders.
-
-  if (commonality.size() > 0)
-  {
-    //Vertically spanning clusters exist.
-
-    for (int i=0; i < commonality.size(); i++)
-    {
-      // Looping through common cluster labels.
-
-      spanning_cluster_size += clusters[commonality[i]-1].coords.size();
-
-      // Storing values of number of sites belonging to spanning cluster.
-
-    }
-
-    return spanning_cluster_size;
-
-  }
-  else
-  {
-    return 0;
-  }
-}
-
-int size_spanning_2D(int frame[], int grid_size)
-{
-	// Returns size (i.e. number of nodes) of all the clusters that span the lattice both horizontally & Vertically,
-  // 0 otherwise.
-
-  vector<int> left;  // empty vector to store left border
-  vector<int> right;  // empty vector to store right border
-  vector<int> up;  // empty vector to store upper border
-  vector<int> down;  // empty vector to store bottom border
-
-  vector<int> commonality; //empty vector to store the common cluster labels present on both the upper and bottom margins
-
-  int labels[grid_size*grid_size] = {0}; // initialize all sites of label lattice to 0
-
-  int spanning_cluster_size=0;
-
-  vector<cluster> clusters; // See cluster_dynamics.h for the data structure cluster. It has two attributes: label and coords.
-
-  find_clusters_free_boundary(frame, labels, clusters, grid_size);
-  // Segregates clusters, populates labels lattice and accumulates clusters with free boundary conditions
-
-
-  for (int i = 0; i<grid_size; i++){ // loop to populate up, down, left & right.
-
-    if (labels[grid_size*i] != 0){
-      left.push_back(labels[grid_size*i]);
-    }
-
-    if (labels[grid_size*(i) + grid_size-1] != 0){
-      right.push_back(labels[grid_size*(i) + grid_size-1]);
-    }
-
-    if (labels[i] != 0){
-      up.push_back(labels[i]);
-    }
-
-    if (labels[grid_size*(grid_size-1)+i] != 0){
-      down.push_back(labels[grid_size*(grid_size-1)+i]);
-    }
-
-  }
-
-  vector<int> common1= common_elements(up, down);
-  vector<int> common2= common_elements(right, common1);
-
-  commonality = common_elements(left, common2);
-  // Returns a unique list of the common cluster labels on both the upper and lower borders.
-
-  if (commonality.size() > 0)
-  {
-    //2D spanning clusters exist.
-
-    for (int i=0; i < commonality.size(); i++)
-    {
-      // Looping through common cluster labels.
-
-      spanning_cluster_size += clusters[commonality[i]-1].coords.size();
-
-      // Storing values of number of sites belonging to the 2D spanning cluster.
-
-    }
-
-    return spanning_cluster_size;
-
-  }
-  else
-  {
-    return 0;
-  }
-}
-
-float theoretical_percolation_probability_np(int grid_size, float birth_probability, int r_init, int number_of_census, int lag)
-{
-  //Finds a Theoretical Estimate Of Percolation Probability.
-
-  int frame[grid_size*grid_size];
-	//random_frame(frame, grid_size); // Initialize a random frame
-	int updates_per_site = 10000; // NP reaches steady state by 10000 for all values of p
-  long limit = r_init*number_of_census;     //Stores the length of percolation_probabilities array necessary.
-	float percolation_probabilities[limit];
-
-
-	//simulate_np(frame,grid_size,birth_probability,updates_per_site); // simulate NP till it reaches steady state
-
-  for(int i = 0; i < r_init ; i++)
-  {
-    int seed = std::random_device{}();
-    rng.seed(seed);
-    random_frame(frame, grid_size); // Assign a random frame
-    //simulate_np(frame,grid_size,birth_probability,updates_per_site); // simulate NP till it reaches steady state
-    random_frame_of_density(birth_probability, frame, grid_size); // Assign a random frame of density p.
-
-    for (int j = 0; j < number_of_census; ++j)
-    {
-      //simulate_np(frame,grid_size,birth_probability,lag); // simulate NP for an average of (lag) number of update per site
-
-      float k= (float) size_spanning_2D(frame, grid_size);
-      //Stores the number of vertices that belong to 2D spanning tree.
-
-      percolation_probabilities[i*number_of_census + j] = k/(grid_size*grid_size);
-    }
-
-  }
-
-  float percolation_probability = mean_of_array(percolation_probabilities,limit);
-	// Theoretical Percolation Probability averaged over censuses
-
-	return percolation_probability;
-}
-
-void theoretical_percolation_probabilities_np(int grid_size, float p_start, float p_end, int divisions, int r_init, int number_of_census, int lag){
-
-	// Find "THEORETICAL" percolation probabilities for NP over a range of value of p by running parallel simulations
-
-	vector<double> birth_probabilities = linspace(p_start, p_end, divisions); // create a vector of specified values of p
-
-	float percolation_probabilities[divisions] = {0}; // initialize percolation probabilities
-
-  ofstream output;
-  // Creating a file instance called output to store output data as CSV.
-  ofstream outputbeta;
-
-  stringstream p_st, p_en, rini, lagger;
-
-  p_st << setprecision(3) << p_start;
-  p_en << setprecision(3) << p_end;
-  // setprecision() is a stream manipulator that sets the decimal precision of a variable.
-  rini << r_init;
-  lagger << lag;
-  output.open("Theoretical_Percol/SP_L_"+ std::to_string(grid_size) + "_p1_" + p_st.str() + "_p2_" + p_en.str() + "_Cen_"+ std::to_string(number_of_census) + "_R_"+ rini.str() + "_Lag_" + lagger.str() + ".csv");
-  // Creating CSV file in "Theoretical_Percol" sub-directory to store output data.
-
-  outputbeta.open("CrtExp/Beta_SP_L_"+ std::to_string(grid_size) + "_p1_" + p_st.str() + "_p2_" + p_en.str() + "_Cen_"+ std::to_string(number_of_census) + "_R_"+ rini.str() + ".csv");
-
-	#pragma omp parallel // The implementation below is obtain a order of percolation probabilities that shadows the order of birth_probabilities
-	{
-	  float percolation_probabilities_private[divisions] = {0};
-
-	  #pragma omp for
-		for (int i=0; i < divisions; i++){
-
-			int seed = std::random_device{}();
-			rng.seed(seed);
-
-			percolation_probabilities_private[i] = theoretical_percolation_probability_np(grid_size, birth_probabilities[i], r_init, number_of_census, lag);
-		}
-	    #pragma omp critical
-	    {
-	        for(int n=0; n < divisions; ++n) {
-	            percolation_probabilities[n] += percolation_probabilities_private[n];
-	        }
-	    }
-	}
-
-  double p_c = 0.592746;
-	//Percolation point for 2D Grid Network.
-	std::vector<double> lnbase; 	// Stores ln(p - pc) values for various values of p.
-
-	// Storing ln| p - p_c | for p ----> p_c+
-	for(int i=0; i<divisions; i++)
-	{
-		double x =0.0;
-		if (birth_probabilities[i] < p_c)
-		{
-			x= 0.0; //Only values greater than p_c are stored.
-		}
-		else
-		{
-			x= log(birth_probabilities[i] - p_c);
-		}
-
-		lnbase.push_back(x);
-	}
-
-	for (int i=0; i< divisions; i++){
-		cout << "p " << setprecision(7) << birth_probabilities[i] << " Strength Of Percolation (P_infty) (Theoretical) " << setprecision(4) << percolation_probabilities[i] << endl;
-		// Prints parameter value and percolation probabilities to the terminal. The ordering is the same as the order of p in birth_probabilities
-	}
-
-  // Writing results to CSV File.
-
-  output << "# Birth Probability (p) , Strength Of Percolation (P_infty) (Theoretical)\n";
-  for (int i=0; i< divisions; i++){
-		output << setprecision(8) << birth_probabilities[i] << "," << setprecision(7) << percolation_probabilities[i] << endl;
-		// Prints parameter value and percolation probabilities to the terminal. The ordering is the same as the order of p in birth_probabilities
-	}
-  output.close();
-
-
-  outputbeta << "# Birth Probability (p) , ln|p - p_c|, Strength Of Percolation (P_infty) (Theoretical)\n";
-  for (int i=0; i< divisions; i++)
-  {
-      if (lnbase[i] != 0)
+      for(int l = l_min; l <= l_max; l++)
       {
-        // In other words, for all p > p_c
-        outputbeta << setprecision(7) << birth_probabilities[i] << ","<< setprecision(10) << lnbase[i] << "," << setprecision(10) << percolation_probabilities[i] << endl;
-    		/* Prints parameter value, ln|p - p_c|. and percolation probabilities to the terminal.
-        The ordering is the same as the order of p in birth_probabilities */
-      }
-
-	}
-  outputbeta.close();
-
-}
-
-float theoretical_percolation_probability_dp(int grid_size, float birth_probability, int r_init, int number_of_census, int lag)
-{
-  //Finds a Theoretical Estimate Of Percolation Probability For DP.
-
-  int frame[grid_size*grid_size];
-	//random_frame(frame, grid_size); // Initialize a random frame
-	int updates_per_site =30000; // DP reaches steady state by 30000 for all values of p
-  long limit = r_init*number_of_census;     //Stores the length of percolation_probabilities array necessary.
-	float percolation_probabilities[limit];
-
-
-	//simulate_np(frame,grid_size,birth_probability,updates_per_site); // simulate NP till it reaches steady state
-
-  for(int i = 0; i < r_init ; i++)
-  {
-    int seed = std::random_device{}();
-    rng.seed(seed);
-    random_frame(frame, grid_size); // Assign a random frame
-    simulate_dp(frame,grid_size,birth_probability,updates_per_site); // simulate DP till it reaches steady state
-    //random_frame_of_density(birth_probability, frame, grid_size); // Assign a random frame of density p.
-
-    for (int j = 0; j < number_of_census; ++j)
-    {
-      simulate_dp(frame,grid_size,birth_probability,lag); // simulate DP for an average of (lag) number of update per site
-
-      float k= (float) size_spanning_2D(frame, grid_size);
-      //Stores the number of vertices that belong to 2D spanning tree.
-
-      percolation_probabilities[i*number_of_census + j] = k/(grid_size*grid_size);
-    }
-
-  }
-
-  float percolation_probability = mean_of_array(percolation_probabilities,limit);
-	// Theoretical Percolation Probability averaged over censuses
-
-	return percolation_probability;
-}
-
-void theoretical_percolation_probabilities_dp(int grid_size, float p_start, float p_end, int divisions, int r_init, int number_of_census, int lag){
-
-	// Find "THEORETICAL" percolation probabilities for NP over a range of value of p by running parallel DP simulations
-
-	vector<double> birth_probabilities = linspace(p_start, p_end, divisions); // create a vector of specified values of p
-
-	float percolation_probabilities[divisions] = {0}; // initialize percolation probabilities
-
-  ofstream output;
-  // Creating a file instance called output to store output data as CSV.
-  ofstream outputbeta;
-
-  stringstream p_st, p_en, rini, lagger;
-
-  p_st << setprecision(3) << p_start;
-  p_en << setprecision(3) << p_end;
-  // setprecision() is a stream manipulator that sets the decimal precision of a variable.
-  rini << r_init;
-  lagger << lag;
-  output.open("Theoretical_Percol/DP_L_"+ std::to_string(grid_size) + "_p1_" + p_st.str() + "_p2_" + p_en.str() + "_Cen_"+ std::to_string(number_of_census) + "_R_"+ rini.str() + "_Lag_" + lagger.str() + ".csv");
-  // Creating CSV file in "Theoretical_Percol" sub-directory to store output data.
-
-  //outputbeta.open("CrtExp/Beta_DP_L_"+ std::to_string(grid_size) + "_p1_" + p_st.str() + "_p2_" + p_en.str() + "_Cen_"+ std::to_string(number_of_census) + "_R_"+ rini.str() + ".csv");
-
-	#pragma omp parallel // The implementation below is obtain a order of percolation probabilities that shadows the order of birth_probabilities
-	{
-	  float percolation_probabilities_private[divisions] = {0};
-
-	  #pragma omp for
-		for (int i=0; i < divisions; i++){
-
-			int seed = std::random_device{}();
-			rng.seed(seed);
-
-			percolation_probabilities_private[i] = theoretical_percolation_probability_dp(grid_size, birth_probabilities[i], r_init, number_of_census, lag);
-		}
-	    #pragma omp critical
-	    {
-	        for(int n=0; n < divisions; ++n) {
-	            percolation_probabilities[n] += percolation_probabilities_private[n];
-	        }
-	    }
-	}
-
-  /*double p_c = 0.592746;
-	//Percolation point for 2D Grid Network.
-	std::vector<double> lnbase; 	// Stores ln(p - pc) values for various values of p.
-
-	// Storing ln| p - p_c | for p ----> p_c+
-	for(int i=0; i<divisions; i++)
-	{
-		double x =0.0;
-		if (birth_probabilities[i] < p_c)
-		{
-			x= 0.0; //Only values greater than p_c are stored.
-		}
-		else
-		{
-			x= log(birth_probabilities[i] - p_c);
-		}
-
-		lnbase.push_back(x);
-	}*/
-
-	for (int i=0; i< divisions; i++){
-		cout << "p " << setprecision(7) << birth_probabilities[i] << " Strength Of Percolation (P_infty) (Theoretical) " << setprecision(4) << percolation_probabilities[i] << endl;
-		// Prints parameter value and percolation probabilities to the terminal. The ordering is the same as the order of p in birth_probabilities
-	}
-
-  // Writing results to CSV File.
-
-  output << "# Birth Probability (p) , Strength Of Percolation (P_infty) (Theoretical)\n";
-  for (int i=0; i< divisions; i++){
-		output << setprecision(8) << birth_probabilities[i] << "," << setprecision(7) << percolation_probabilities[i] << endl;
-		// Prints parameter value and percolation probabilities to the terminal. The ordering is the same as the order of p in birth_probabilities
-	}
-  output.close();
-
-
-  /*outputbeta << "# Birth Probability (p) , ln|p - p_c|, Strength Of Percolation (P_infty) (Theoretical)\n";
-  for (int i=0; i< divisions; i++)
-  {
-      if (lnbase[i] != 0)
-      {
-        // In other words, for all p > p_c
-        outputbeta << setprecision(7) << birth_probabilities[i] << ","<< setprecision(10) << lnbase[i] << "," << setprecision(10) << percolation_probabilities[i] << endl;
-    		/* Prints parameter value, ln|p - p_c|. and percolation probabilities to the terminal.
-        The ordering is the same as the order of p in birth_probabilities
-      }
-
-	}
-  outputbeta.close(); */
-
-}
-
-double theoret_percol_prob_denovo_dp(int grid_size, float birth_probability,  int r_init, int number_of_census, int lag)
-{
-  //Finds a Theoretical Estimate Of Percolation Probability For DP.
-
-  int frame[grid_size*grid_size];
-	//random_frame(frame, grid_size); // Initialize a random frame
-  int updates_per_site =8000; // DP reaches steady state by 8000 for most values of p.
-  if( birth_probability >= 0.4 && birth_probability >= 0.4)
-  {
-    //There is critical slowing down.
-    updates_per_site =50000; // DP reaches steady state by 50000 for critical slowing down.
-  }
-  long limit = r_init*number_of_census;     //Stores the length of percolation_probabilities array necessary.
-	float percolation_probabilities[limit];
-
-
-	//simulate_np(frame,grid_size,birth_probability,updates_per_site); // simulate NP till it reaches steady state
-
-  for(int i = 0; i < r_init ; i++)
-  {
-    int seed = std::random_device{}();
-    rng.seed(seed);
-    random_frame(frame, grid_size); // Assign a random frame
-    simulate_dp(frame,grid_size,birth_probability,updates_per_site); // simulate DP till it reaches steady state
-    //random_frame_of_density(birth_probability, frame, grid_size); // Assign a random frame of density p.
-
-    for (int j = 0; j < number_of_census; ++j)
-    {
-      simulate_dp(frame,grid_size,birth_probability,lag); // simulate DP for an average of (lag) number of update per site
-
-      int labels[grid_size*grid_size] = {0}; // initialize all sites of label lattice to 0
-
-      vector<cluster> clusters; // See cluster_dynamics.h for the data structure cluster. It has two attributes: label and coords.
-
-      find_clusters_free_boundary(frame, labels, clusters, grid_size);
-      // Segregates clusters, populates labels lattice and accumulates clusters with free boundary conditions
-
-      vector<coordinates> cluster_details;
-      // Stores label id in x attribute, cluster size associated with label in 2nd coordinate.
-
-      vector<int> spanning_cluster_labels = spanning_cluster_label_id(frame, grid_size, labels, clusters);
-      //Returns labels of spanning cluster(s) if present, -1 otherwise.
-      float k =0.0; //If a spanning cluster is absent.
-      if( spanning_cluster_labels[0] > -1)
-      {
-        // Spanning cluster in either direction present.
-        k=1.0;
-      }
-      percolation_probabilities[i*number_of_census + j] = k;
-    }
-
-  }
-
-  double percolation_probability = mean_of_array(percolation_probabilities,limit);
-	// Pi[p] averaged over censuses
-
-	return percolation_probability;
-}
-
-
-void calculate_pc_dp(int grid_size, float p_start, float p_end, int divisions, int r_init, int number_of_census, int lag){
-
-	// Find "THEORETICAL" percolation probabilities for NP over a range of value of p by running parallel DP simulations
-
-	vector<double> birth_probabilities = linspace(p_start, p_end, divisions); // create a vector of specified values of p
-
-	double percolation_probabilities[divisions] = {0}; // initialize percolation probabilities
-
-  ofstream output;
-  // Creating a file instance called output to store output data as CSV.
-  ofstream outputpc;
-
-  std::vector<zd_coordinates> vec;
-  // Stores collated output from parallel method calls in proper scending order of grid sizes.
-
-  stringstream p_st, p_en, rini, lagger;
-
-  p_st << setprecision(3) << p_start;
-  p_en << setprecision(3) << p_end;
-  // setprecision() is a stream manipulator that sets the decimal precision of a variable.
-  rini << r_init;
-  lagger << lag;
-  output.open("Theoretical_Percol/Pc_DP_L_"+ std::to_string(grid_size) + "_p1_" + p_st.str() + "_p2_" + p_en.str() + "_Cen_"+ std::to_string(number_of_census) + "_R_"+ rini.str() + "_Lag_" + lagger.str() + ".csv");
-  // Creating CSV file in "Theoretical_Percol" sub-directory to store output data.
-
-  //outputbeta.open("CrtExp/Beta_DP_L_"+ std::to_string(grid_size) + "_p1_" + p_st.str() + "_p2_" + p_en.str() + "_Cen_"+ std::to_string(number_of_census) + "_R_"+ rini.str() + ".csv");
-
-	#pragma omp parallel // The implementation below is obtain a order of percolation probabilities that shadows the order of birth_probabilities
-	{
-	  double percolation_probabilities_private[divisions] = {0};
-
-	  #pragma omp for
-		for (int i=0; i < divisions; i++){
-
-      stringstream message;     //To make cout thread-safe as well as non-garbled due to race conditions.
-      message << "We are working on Occupy WS Prob:\t" << birth_probabilities[i] <<endl;
-      cout << message.str();
-
-			int seed = std::random_device{}();
-			rng.seed(seed);
-
-			percolation_probabilities_private[i] = theoret_percol_prob_denovo_dp(grid_size, birth_probabilities[i], r_init, number_of_census, lag);
-		}
-	    #pragma omp critical
-	    {
-	        for(int n=0; n < divisions; ++n) {
-	            percolation_probabilities[n] += percolation_probabilities_private[n];
-	        }
-	    }
-	}
-
-	for (int i=0; i< divisions; i++){
-		cout << "p " << setprecision(7) << birth_probabilities[i] << " Prob Of Existence Of Spanning Cluster (Pi(p)) " << setprecision(5) << percolation_probabilities[i] << endl;
-		// Prints parameter value and percolation probabilities to the terminal. The ordering is the same as the order of p in birth_probabilities
-	}
-
-  // Writing results to CSV File.
-
-  output << "# Birth Probability (p) ,  Prob Of Existence Of Spanning Cluster (Pi(p)) \n";
-  for (int i=0; i< divisions; i++){
-		output << setprecision(8) << birth_probabilities[i] << "," << setprecision(10) << percolation_probabilities[i] << endl;
-		// Prints parameter value and percolation probabilities to the terminal. The ordering is the same as the order of p in birth_probabilities
-	}
-  output.close();
-
-}
-
-
-void pavg_map_pc_dp(int grid_size, int r_init, int number_of_census, int lag)
-{
-
-  //Using Stauffer-Aharony to find infinite percolation threshold.
-  int updates_per_site=50000;
-  //vector<double> birth_probabilities = linspace(p_start, p_end, divisions); // create a vector of specified values of p
-
-  //double rho_stat[divisions] = {0}; // initialize percolation probabilities
-
-  ofstream output;
-  // Creating a file instance called output to store output data as CSV.
-  ofstream outputpc;
-
-  std::vector<zd_coordinates> vec;
-  // Stores collated output from parallel method calls in proper scending order of grid sizes.
-
-  stringstream g, rini;
-
-  /**p_st << setprecision(3) << p_start;
-  p_en << setprecision(3) << p_end; */
-  // setprecision() is a stream manipulator that sets the decimal precision of a variable.
-  rini << r_init;
-  g << grid_size;
-
-  output.open("Theoretical_Percol/DP_L_"+ g.str() +  "_Cen_"+ std::to_string(number_of_census) + "_R_"+ rini.str() + ".csv");
-  // Creating CSV file in "Theoretical_Percol" sub-directory to store output data.
-
-  //outputbeta.open("CrtExp/Beta_DP_L_"+ std::to_string(grid_size) + "_p1_" + p_st.str() + "_p2_" + p_en.str() + "_Cen_"+ std::to_string(number_of_census) + "_R_"+ rini.str() + ".csv");
-
-  #pragma omp parallel // The implementation below is obtain a order of percolation probabilities that shadows the order of birth_probabilities
-  {
-    std::vector<zd_coordinates> vec_private;
-
-    //Grants a static schedule with a chunk size of 1.
-    /* Based on procedure suggested in:
-    https://stackoverflow.com/questions/18669296/c-openmp-parallel-for-loop-alternatives-to-stdvector */
-
-    #pragma omp for nowait schedule(static)
-    for (int i=0; i < r_init; i++)
-    {
-
-      stringstream message;     //To make cout thread-safe as well as non-garbled due to race conditions.
-      message << "We are working on Occupy WS Trial:\t" << i <<endl;
-      cout << message.str();
-
-      int frame[grid_size*grid_size];
-      int seed = std::random_device{}();
-      rng.seed(seed);
-      random_frame(frame, grid_size); // Assign a random frame
-      simulate_dp(frame,grid_size,0.5,updates_per_site);
-
-      zd_coordinates temp = binsearch_p_c(0.5, frame, grid_size, number_of_census, seed);
-      //Stores [L,p, p^2] value for a particular trial.
-
-      vec_private.push_back(temp);
-      //rho_stat_private[i] = equilibrium_density_dp(grid_size, birth_probabilities[i], r_init, number_of_census, lag, updates_per_site, 0);
-      // No collection of frames
-    }
-    #pragma omp for schedule(static) ordered
-    for(int i=0; i< omp_get_num_threads(); i++)
-    {
-      #pragma omp ordered
-        vec.insert(vec.end(), vec_private.begin(), vec_private.end());
-        // Inserting p-values for each trial in order.
-        stringstream message3;
-        message3 << "Is this happening?\n";
-        cout << message3.str();
-
-    }
-  }
-  cout << " L, # Tr No , p\n";
-  for (int i=0; i<vec.size(); i++){
-    cout << vec[i].x << " " << setprecision(5) << i << " " << setprecision(10) << vec[i].y << endl;
-    // Prints parameter value and percolation probabilities to the terminal. The ordering is the same as the order of p in birth_probabilities
-  }
-
-  // Writing results to CSV File.
-
-  output << "# L, # Tr No , p\n";
-  for (int i=0; i<vec.size(); i++){
-    output << vec[i].x << "," << setprecision(5) << i << ","  << setprecision(10) << vec[i].y << endl;
-    // Prints parameter value and percolation probabilities to the terminal. The ordering is the same as the order of p in birth_probabilities
-  }
-  output.close();
-}
-
-
-void pavg_map_pc_tcp(double q, int grid_size, int r_init, int number_of_census, int lag)
-{
-
-  //Using Stauffer-Aharony to find infinite percolation threshold in TCP set-up.
-  int updates_per_site=50000;
-
-  ofstream output;
-  // Creating a file instance called output to store output data as CSV.
-  ofstream outputpc;
-
-  std::vector<zd_coordinates> vec;
-  // Stores collated output from parallel method calls in proper scending order of grid sizes.
-
-  stringstream g, q_no, rini;
-  // setprecision() is a stream manipulator that sets the decimal precision of a variable.
-  rini << r_init;
-  q_no << q;
-  g << grid_size;
-
-    output.open("Theoretical_Percol/TCP_L_"+ g.str() + "_Q_"+ q_no.str() +  "_Cen_"+ std::to_string(number_of_census) + "_R_"+ rini.str() + ".csv");
-  // Creating CSV file in "Theoretical_Percol" sub-directory to store output data.
-
-  //outputbeta.open("CrtExp/Beta_DP_L_"+ std::to_string(grid_size) + "_p1_" + p_st.str() + "_p2_" + p_en.str() + "_Cen_"+ std::to_string(number_of_census) + "_R_"+ rini.str() + ".csv");
-
-  #pragma omp parallel // The implementation below is obtain a order of percolation probabilities that shadows the order of birth_probabilities
-  {
-    std::vector<zd_coordinates> vec_private;
-
-    //Grants a static schedule with a chunk size of 1.
-    /* Based on procedure suggested in:
-    https://stackoverflow.com/questions/18669296/c-openmp-parallel-for-loop-alternatives-to-stdvector */
-
-    #pragma omp for nowait schedule(static)
-    for (int i=0; i < r_init; i++)
-    {
-
-      stringstream message;     //To make cout thread-safe as well as non-garbled due to race conditions.
-      message << "We are working on Occupy WS Trial:\t" << i <<endl;
-      cout << message.str();
-
-      int frame[grid_size*grid_size];
-      int seed = std::random_device{}();
-      rng.seed(seed);
-      random_frame(frame, grid_size); // Assign a random frame
-      simulate_tp(frame,grid_size,0.5, q, updates_per_site);
-
-      zd_coordinates temp = binsearch_p_c_TCP(0.5, q, frame, grid_size, number_of_census, seed);
-      //Stores [L,p, p^2] value for a particular trial.
-
-      vec_private.push_back(temp);
-      //rho_stat_private[i] = equilibrium_density_dp(grid_size, birth_probabilities[i], r_init, number_of_census, lag, updates_per_site, 0);
-      // No collection of frames
-    }
-    #pragma omp for schedule(static) ordered
-    for(int i=0; i< omp_get_num_threads(); i++)
-    {
-      #pragma omp ordered
-        vec.insert(vec.end(), vec_private.begin(), vec_private.end());
-        // Inserting p-values for each trial in order.
-        stringstream message3;
-        message3 << "Is this happening?\n";
-        cout << message3.str();
-
-    }
-  }
-  cout << "q,  L, # Tr No , p\n";
-  for (int i=0; i<vec.size(); i++){
-    cout << q << " " << vec[i].x << " " << setprecision(5) << i << " " << setprecision(10) << vec[i].y << endl;
-    // Prints parameter value and percolation probabilities to the terminal. The ordering is the same as the order of p in birth_probabilities
-  }
-
-  // Writing results to CSV File.
-
-  output << "#q, L, # Tr No , p\n";
-  for (int i=0; i<vec.size(); i++){
-    output << q << "," << vec[i].x << "," << setprecision(5) << i << ","  << setprecision(10) << vec[i].y << endl;
-    // Prints parameter value and percolation probabilities to the terminal. The ordering is the same as the order of p in birth_probabilities
-  }
-  output.close();
-}
-
-//----------------------------- Function For Calculating Custom ACF Data----------------------------------------//
-
-
-
-float xdynamic(int frame[], int grid_size)
-{
-  //Calculates & Returns X dynamic variable for a frame instance.
-
-  float x=0.0;
-  for (int i = 0; i < grid_size; ++i)
-    {
-        for (int j = 0; j < grid_size; ++j)
+        float sum =0.0;
+        for(int m=0; m < grid_size; m++)
+        {
+          if( m - k >= grid_size || m - k < 0)
+          {   continue;   }
+          for(int n=0; n < grid_size; n++)
           {
-            x += (float)(i*grid_size+j)*frame[i*grid_size + j];
+            if( n - l >= grid_size || n - l < 0)
+            {   continue;   }
+            sum += (frame1[m*grid_size + n] - rho_sig1.x)*(frame2[(m - k)*grid_size + n -l] - rho_sig2.x);
           }
+        }
+        croscolmatr[k + grid_size -1][l + grid_size -1] =sum/(rho_sig1.y*rho_sig2.y*grid_size*grid_size);
+        // Denomiator is the normalisation factor.
+      }
     }
+    zd_coordinates max ={-1000.0, -1.0, -1.0};
+    for(int m=0; m < 2*grid_size-1; m++)
+    {
+      for(int n=0; n < 2*grid_size-1; n++)
+      {
+        if(croscolmatr[m][n] > max.x)
+        {
+          max.x =croscolmatr[m][n]; max.y = m -(grid_size -1); max.z = n - (grid_size -1);
+        }
+        //cout << setprecision(4) << croscolmatr[m][n] << "|";
+      }
+      //cout << endl;
+    }
+    stringstream msg;
+    msg <<"\n Max Coeff:\t" <<setprecision(5) << max.x << " at: (" << max.y << "," << max.z << ")\n";
+    cout << msg.str();
+    return max;
 
-    return x;
+
 
 }
 
-
-
-void acf_np(int grid_size, vector<f_coordinates>& acf_data, float p, int length, int lag)
+void CrossCol_DP(int grid_size, float p, int number_of_census, int r_init, int lag)
 {
   lag=1;
-  int frame[grid_size*grid_size];
-	random_frame(frame, grid_size); // Initialize a random frame
-	int updates_per_site = 10000; // NP reaches steady state by 10000 for all values of p
-
-  simulate_np(frame, grid_size, p ,updates_per_site); // simulate NP till it reaches steady state
-
-  float r = (float) grid_size*grid_size;
-
-  float mean= p*r*(r + 1)/2.0;
-  float var = p*(1-p)*r*(r + 1 )*(2*r + 1)/6.0;
-
-  stringstream msg;     //To make cout thread-safe as well as non-garbled due to race conditions.
-  msg << "Mean & Variance this particular trial:\t" << setprecision(3) << mean << "  " << setprecision(3) << var << "\n";
-  cout << msg.str();
-
-
-  float X_tk[length];    // Stores value of X(t+k) for different values of 0<= k < length
-  /* X is a dynamic variable (check notebook for details) based on frame (NOTE: NOT INJECTIVE), with mean and variance
-  as above. */
-
-  for(int i=0; i<length; i++)
-  {
-    X_tk[i] = xdynamic(frame, grid_size);  // Stores value of X_t (dynamic variable) for current frame (t).
-
-    simulate_np(frame,grid_size, p , 1); // simulate NP for an average of (lag = 1) number of update per site
-  }
-
-  for(int i=0; i<length; i++)
-  {
-    int m = length - i;
-    float sum =0.0;
-    for(int j=0; j < m; j++)
-    {
-      sum += (X_tk[j] - mean)*(X_tk[j+i] - mean);
-    }
-    f_coordinates absalom;
-    absalom.x = (float) i;
-    absalom.y = (float) sum/(m*var);
-    acf_data.push_back(absalom);
-
-  }
-  //Using estimator as per: https://en.wikipedia.org/wiki/Autocorrelation
-
-  stringstream message;     //To make cout thread-safe as well as non-garbled due to race conditions.
-  message << "Length of acf_data for this particular trial:\t" << acf_data.size() << "\n";
-  cout << message.str();
-
-
-}
-
-
-void acf_np_custom(int grid_size, float p, int divisions, int length, int lag)
-{
-  ofstream output;
-  // Creating a file instance called output to store output data as CSV.
-
-  stringstream peon, div;
+  stringstream peon, p_en, rini;
 
   peon << setprecision(3) << p;
   //p_en << setprecision(3) << p_end;
   // setprecision() is a stream manipulator that sets the decimal precision of a variable.
-  div << divisions;
-  output.open("ACF/NP_L_"+ std::to_string(grid_size) + "_p_" + peon.str() + "_Div_" + div.str() + "_Len_"+ std::to_string(length) + ".csv");
-  // Creating CSV file in "ACF" sub-directory to store output data
+  rini << r_init;
 
-  std::vector<f_coordinates> vec;
+  ofstream outputACF; //Creating a file stream for storing the output in the form of  a CSV.
+
+  outputACF.open("ACF/DP_L_"+ std::to_string(grid_size) + "_p_" + peon.str() + "_r_" + rini.str() + "_Cen_"+ std::to_string(number_of_census) + ".csv");
+  // Creating CSV file in "ACF" sub-directory to store output data
+  std::vector<std::vector<double>> output;
   //Will store ACF(t) data for every t <length for every division (trial) in order.
 
   //The implementation below is obtain a order of percolation probabilities that shadows the order of birth_probabilities
   #pragma omp parallel
   {
-      std::vector<f_coordinates> vec_private;
+
+      std::vector<std::vector<double>> kek;
 
       //Grants a static schedule with a chunk size of 1.
       /* Based on procedure suggested in:
       https://stackoverflow.com/questions/18669296/c-openmp-parallel-for-loop-alternatives-to-stdvector */
 
       #pragma omp for nowait schedule(static)
-      for (int i=0; i < divisions; i++)
+      for (int r=0; r< r_init; r++)
       {
-
         int seed = std::random_device{}();
         rng.seed(seed);
+        int frame[grid_size*grid_size];
+	      random_frame(frame, grid_size); // Initialize a random frame
+	      int updates_per_site = 50000; // NP reaches steady state by 10000 for all values of p
 
-        std::vector<f_coordinates> acf_data;
+        simulate_dp(frame, grid_size, p ,updates_per_site); // simulate NP till it reaches steady state
 
-        acf_np(grid_size, acf_data, p, length, lag);
-        //Finds and stores ACF functional form based on custom (NON-INJECTIVE) dynamic variable defined in xdynamic()
+        int f1[grid_size*grid_size]; int f2[grid_size*grid_size];
+        //copy(begin(frame), end(frame), begin(f1)); // Copying frame[] to f1[]
 
-        vec_private.insert(vec_private.end(), acf_data.begin(), acf_data.end());
+        for(int i=0; i<grid_size*grid_size; i++)
+        {
+          f1[i] = frame[i];
+        }
 
+        //std::vector<zd_coordinates> kek;
+
+        for(int i = 0; i < number_of_census; i++)
+        {
+
+          for(int j=0; j<grid_size*grid_size; j++)
+          {
+            f2[j] = frame[j];
+          }
+
+          zd_coordinates kekistan = crosscorrelation_2D(f1, f2, grid_size);
+          kek.push_back({4*i, kekistan.x, kekistan.y, kekistan.z, p});
+
+          for(int n =0; n < 4; n++)
+          {
+          dp_update(frame, grid_size, p); //Single update.
+          }
+            //copy(begin(frame), end(frame), begin(f2)); // Copying frame[] to f1[]
+        }
       }
-
       #pragma omp for schedule(static) ordered
       for(int i=0; i< omp_get_num_threads(); i++)
       {
         #pragma omp ordered
-          vec.insert(vec.end(), vec_private.begin(), vec_private.end());
+          output.insert(output.end(), kek.begin(), kek.end());
           // Inserting ACF data for each trial in order.
       }
   }
-
-
-  //Printing out obtained results.
-  cout << "The vector elements are: "<< endl;
-  cout << "# Tau (T) , ACF(T)\n";
-  for (int i = 0; i < vec.size(); i++)
+  /*std::vector<std::vector<double>> output;
+  for(int i = 0; i < number_of_census; i++)
   {
-    cout << vec[i].x << "  " << setprecision(3) << vec[i].y << endl;
-  }
-
-  // Writing results to CSV File.
-
-  output << "# Tau (T) , ACF(T)\n";
-  for (int i=0; i< vec.size(); i++){
-		output << vec[i].x << "," << setprecision(4) << vec[i].y << endl;
-		// Prints parameter value and percolation probabilities to the terminal. The ordering is the same as the order of p in birth_probabilities
-	}
-  output.close();
-
-
-}
-
-
-
-//------------------------------------ Finite Scaling Gimmickery (TCP) ---------------------------------
-
-void output_dump(int frame[], int grid_size, int i, double p, int labels[], vector <cluster>& clusters, vector<int>& spanning_cluster_labels)
-{
-  ofstream ofputter;
-  stringstream peon, div ,g;
-
-  peon << setprecision(8) << p;
-  //p_en << setprecision(3) << p_end;
-  // setprecision() is a stream manipulator that sets the decimal precision of a variable.
-  div << i;
-  g << grid_size;
-  ofputter.open("dump/SP_p_" + peon.str() + "_G_"+ g.str() + "_i_" + div.str() + ".csv");
-  // Creating CSV file in "dump" sub-directory to store frame data
-
-  for (int j = 0; j < grid_size; ++j)
-    {
-        for (int k = 0; k < grid_size; ++k)
-        {
-            int flag=0;
-            for(int r =0 ; r < spanning_cluster_labels.size(); r++)
-            {
-              if(labels[j*grid_size + k] == spanning_cluster_labels[r])
-              {
-                //If current node is part of spanning cluster, trip up the flag variable
-                flag=1;
-              }
-            }
-            if ( flag == 1)
-            {
-              //Node is part of spanning cluster, outdata as 2.
-              ofputter << -1 << ',';
-            }
-            else
-            { ofputter << labels[j*grid_size + k] << ','; }
-        }
-        ofputter << '\n';
-    }
-  ofputter.close();
-  }
-
-zd_coordinates binsearch_p_c_TCP(double p, double q, int frame[], int grid_size, int num, int seed)
-  {
-    int updates_per_site =50000;
-    // Using binary search to find first instance of grid percolation.
-    double p_old= 2*p;
-    for( int i=0; i < num; i++)
-    {
-      int labels[grid_size*grid_size] = {0}; // initialize all sites of label lattice to 0
-      vector <cluster> clusters;
-      find_clusters_free_boundary(frame, labels, clusters, grid_size);
-      // Performing DFS, finding clusters.
-
-      vector<int> spanning_cluster_labels = spanning_cluster_label_id(frame, grid_size, labels, clusters);
-      if (spanning_cluster_labels[0] != -1)
-      {
-        //There exists a spanning cluster, search for cluster in lower half-interval.
-        double temp = p;
-        p -= fabs( p_old - temp )/2;
-        p_old = temp;
-      }
-      else
-      {
-        // No spanning cluster found, search for spanning cluster in upper half-interval.
-        double temp = p;
-        p += fabs( p_old - temp )/2;
-        p_old = temp;
-      }
-      rng.seed(seed);
-      //random_frame_of_density(p, frame, grid_size);
-      // Generating new random frame (with same seed) in half-interval
-
-      random_frame(frame, grid_size); // Assign a random frame (with same seed) in half-interval
-      simulate_tp(frame,grid_size,p, q, updates_per_site);
-      // Simulate DP to equilibrium with p
-    }
-
-    zd_coordinates arkham; //Dummy variable.
-    arkham.x = grid_size;
-    arkham.y = p;
-    arkham.z = (double) p*p;
-
-    return arkham;
-
-  }
-
-void crtexp_gamma_TCP(int grid_size,vector<zd_coordinates> &comp_data, double p, double q, int r_init, int number_of_census, int lag)
-  {
-    // Using the formal definition of the average cluster size.
-    //int lag=5000;
-    tau_patch_size_find_tcp(grid_size, comp_data, p, q, r_init, number_of_census, lag);
-    // Returns comp_data in the form of (p, s, n_s(p,q)).
-    // We need to modify p with L.
-
-    for(int i=0; i < comp_data.size(); i++)
-    {
-      if(comp_data[i].z >= 1)
-      {
-        // i.e Not A Header File [{#, p, q}] OR row denoting 0 P(p) [{p, -10, 0}]
-        comp_data[i].x = grid_size;
-        comp_data[i].z /= (grid_size*grid_size);
-      }
-      if(comp_data[i].y < 0)
-      {
-        // We have ourselves a null ('0') percolation strength newline [{p, -10, 0}]
-        comp_data[i].x = grid_size;
-      }
-    }
-
-    stringstream msg;
-    msg << "Hola\n";
-    cout << msg.str();
-  }
-
-void finite_scaling_crtexp_TCP(int grid_sizes[], double p, double q, string type, int divisions, int r_init, int number_of_census, int lag)
-{
-    //This method will find finite scaling relations for a given p ----------------> p_c.
-
-    //int r_init =25;
-    //number_of_census= 1;
-
-    type= "Gam";
-
-    std::vector<zd_coordinates> vec;
-    // Stores collated output from parallel method calls in proper scending order of grid sizes.
-    ofstream outputfinsc;
-    // Creating a file instance called output to store output data as CSV.
-
-    stringstream peon, quint, div ,g1, g2;
-
-    peon << setprecision(4) << p;
-    quint << setprecision(3) << q;
-    //p_en << setprecision(3) << p_end;
-    // setprecision() is a stream manipulator that sets the decimal precision of a variable.
-    div << divisions;
-    g1 << grid_sizes[0];
-    g2 << grid_sizes[divisions-1];
-    if (type == "Nu" || type == "Gam")
-      {
-        outputfinsc.open("CrtExp/FinSc"+ type +"_TCP_p_" + peon.str() + "_q_" + quint.str() + "_Div_" + div.str() + "_G1_"+ g1.str() + "_G2_"+ g2.str() + ".csv");
-      }
-    else
-      {
-        //Default is Beta/Gamma Computation.
-        outputfinsc.open("CrtExp/FinSc_TCP_p_" + peon.str() + "_q_" + quint.str() + "_Div_" + div.str() + "_G1_"+ g1.str() + "_G2_"+ g2.str() + ".csv");
-      }
-
-    // Creating CSV file in "ACF" sub-directory to store output data
-
-    #pragma omp parallel
-    {
-        std::vector<zd_coordinates> vec_private;
-
-        //Grants a static schedule with a chunk size of 1.
-        /* Based on procedure suggested in:
-        https://stackoverflow.com/questions/18669296/c-openmp-parallel-for-loop-alternatives-to-stdvector */
-
-        #pragma omp for nowait schedule(static)
-        for (int i=0; i < divisions; i++)
-        {
-          //type="Gam";
-          stringstream message;     //To make cout thread-safe as well as non-garbled due to race conditions.
-          message << "We are working on Grid Size:\t" << grid_sizes[i] <<endl;
-          cout << message.str();
-          int seed = std::random_device{}();
-          rng.seed(seed);
-
-          std::vector<zd_coordinates> comp_data;
-
-          if(type == "Nu")
-          {
-            //crtexp_nu(grid_sizes[i], comp_data, r_init, number_of_census);
-            continue;
-            //Finds and returns nu (critical exponent) related data for a given grid_size
-            // Returns {L, p, p^2}
-          }
-          else if(type =="Gam")
-          {
-            crtexp_gamma_TCP(grid_sizes[i], comp_data, p, q, r_init, number_of_census, lag);
-            //Finds and returns gamma (critical exponent) related data for a given grid_size
-            // Returns {L, p, p^2}
-          }
-
-          vec_private.insert(vec_private.end(), comp_data.begin(), comp_data.end());
-
-        }
-
-        #pragma omp for schedule(static) ordered
-        for(int i=0; i< omp_get_num_threads(); i++)
-        {
-          #pragma omp ordered
-            vec.insert(vec.end(), vec_private.begin(), vec_private.end());
-            // Inserting critical exponent data for each grid size in order.
-            stringstream message3;
-            message3 << "Is this happening?\n";
-            cout << message3.str();
-
-        }
-    }
-    cout << "Game Over" << endl;
-    vector <vector<double>> output;
-    //Creating 2D vector to store final output
-
-    if(type == "Gam")
-    {
-      double trialno =1; double q_anon=q;
-      for(int i=0; i <vec.size(); i++)
-      {
-        if(vec[i].z < 1 && vec[i].y < 1 && vec[i].y >=0)
-        {
-          //Header line represented by row vector [# No, p, q]
-          trialno = vec[i].x; q_anon= vec[i].z;
-          continue;
-        }
-        output.push_back({p, q_anon, vec[i].x, trialno, vec[i].y, vec[i].z});
-        //Filled as p,q, L, # No, s, n_s(p).
-      }
-    }
-    else
-    {
-      double trialno =1;
-      for(int i=0; i <vec.size(); i++)
-      {
-        int j = i % r_init;
-        int trl_no = j % number_of_census + 1; int r_no = int(j/number_of_census);
-        trialno = r_no*number_of_census + trl_no;
-
-        output.push_back({p, q, vec[i].x, trialno, vec[i].y, vec[i].z});
-        //Filled as p, q, L, # No, P(p), S(p)
-      }
-    }
-
-
-    //Printing out obtained results.
-    cout << "The vector elements are: "<< endl;
-    //cout << " p , L, # Tr No , P[p] ,  S[p]\n";
-    if(type == "Nu")
-    {
-      cout << " p , q, L, # Tr No , p ,  p^2 \n";
-      outputfinsc << " p , q, L, # Tr No , p ,  p^2 \n";
-    }
-    else if(type == "Gam")
-    {
-      cout << " p , q, L, # Tr No , s ,  n_s(p) \n";
-      outputfinsc << " p , q, L, # Tr No , s ,  n_s(p) \n";
-    }
-    else
-    {
-      cout << " p ,q, L, # Tr No , s ,  ns_(p)\n";
-      outputfinsc << " p ,q, L, # Tr No , P[p] ,  S[p]\n";
-    }
-    for (int i = 0; i < output.size(); i++)
-    {
-      cout << setprecision(8) << output[i][0] << "  " << setprecision(3) << output[i][1] << "  " << setprecision(5) << output[i][2] << "  " << setprecision(3) << output[i][3] << "  " << setprecision(16) << output[i][4] << "  " << setprecision(16) << output[i][5] << endl;
-    }
-    // Saving to aforementioned CSV
-
-    for (int i = 0; i < output.size(); i++)
-    {
-      outputfinsc << setprecision(8) << output[i][0] << "," << setprecision(5) << output[i][1] << "," << setprecision(8) << output[i][2] << "," << setprecision(3) << output[i][3] << "," << setprecision(16) << output[i][4] << "," << setprecision(16) << output[i][5] << endl;
-    }
-    outputfinsc.close();
-
-
-  }
-
-//--------------------------------- Crtical Exponents (Beta, Gamma etc) [Finite Scaling] [NP/DP]------------------------//
-
-zd_coordinates binsearch_p_c(double p, int frame[], int grid_size, int num, int seed)
-{
-  int updates_per_site =50000;
-  // Using binary search to find first instance of grid percolation.
-  double p_old= 2*p;
-  for( int i=0; i < num; i++)
-  {
-    int labels[grid_size*grid_size] = {0}; // initialize all sites of label lattice to 0
-    vector <cluster> clusters;
-    find_clusters_free_boundary(frame, labels, clusters, grid_size);
-    // Performing DFS, finding clusters.
-
-    vector<int> spanning_cluster_labels = spanning_cluster_label_id(frame, grid_size, labels, clusters);
-    if (spanning_cluster_labels[0] != -1)
-    {
-      //There exists a spanning cluster, search for cluster in lower half-interval.
-      double temp = p;
-      p -= fabs( p_old - temp )/2;
-      p_old = temp;
-    }
-    else
-    {
-      // No spanning cluster found, search for spanning cluster in upper half-interval.
-      double temp = p;
-      p += fabs( p_old - temp )/2;
-      p_old = temp;
-    }
-    rng.seed(seed);
-    //random_frame_of_density(p, frame, grid_size);
-    // Generating new random frame (with same seed) in half-interval
-
-    random_frame(frame, grid_size); // Assign a random frame (with same seed) in half-interval
-    simulate_dp(frame,grid_size,p,updates_per_site);
-    // Simulate DP to equilibrium with p
-  }
-
-  zd_coordinates arkham; //Dummy variable.
-  arkham.x = grid_size;
-  arkham.y = p;
-  arkham.z = (double) p*p;
-
-  return arkham;
-
-}
-
-void crtexp_nu(int grid_size,vector<zd_coordinates> &comp_data, int r_init, int number_of_census)
-{
-  // Based on methods highlighted in pages 73-74 of Stauffer & Anthony. Finding <p> & <p^2>.
-
-  number_of_census=12; int updates_per_site =8000; //DP reaches equilibrium by 50000.
-
-  int frame[grid_size*grid_size];
-  for (int i = 0; i < r_init ; i++)
-  {
-    int seed = std::random_device{}();
-    rng.seed(seed);
-    random_frame(frame, grid_size); // Assign a random frame
-    simulate_dp(frame,grid_size,0.5,updates_per_site);
-    // Simulate DP to equilibrium with p=0.5
-    //random_frame_of_density(0.5, frame, grid_size); // Initialize a random frame of density 0.5 .
-    zd_coordinates temp = binsearch_p_c(0.5, frame, grid_size, number_of_census, seed);
-    comp_data.push_back(temp); //Writing up the values for a single trial in a given grid.
-    // Stores data in the form of {L, p, p^2}
-  }
-
-}
-
-void crtexp_gamma(int grid_size,vector<zd_coordinates> &comp_data, double p, int r_init, int number_of_census)
-{
-  // Using the formal definition of the average cluster size.
-  int lag=15;
-  tau_patch_size_find_np(grid_size, comp_data, p, r_init, number_of_census, lag);
-  // Returns comp_data in the form of (p, s, ns(p)).
-  // We need to modify p with L.
-
-  for(int i=0; i < comp_data.size(); i++)
-  {
-    if(comp_data[i].z >= 1)
-    {
-      // i.e Not A Header File [{#, p, p}] OR row denoting 0 P(p) [{p, -10, 0}]
-      comp_data[i].x = grid_size;
-      comp_data[i].z /= (grid_size*grid_size);
-    }
-    if(comp_data[i].y < 0)
-    {
-      // We have ourselves a null ('0') percolation strength newline [{p, -10, 0}]
-      comp_data[i].x = grid_size;
-    }
-  }
-
-  stringstream msg;
-  msg << "Hola\n";
-  cout << msg.str();
-}
-
-void crtexp_beta_gamma(int grid_size,vector<zd_coordinates> &comp_data, double p, int r_init, int number_of_census)
-{
-
-  number_of_census=1;
-
-  int frame[grid_size*grid_size];
-	random_frame(frame, grid_size); // Initialize a random frame
-	int updates_per_site = 10000; // NP reaches steady state by 10000 for all values of p
-  int limit = r_init*number_of_census;
-	float average_cluster_size[limit]; double percolation_probabilities[limit];
-
-  for (int i=0; i< r_init; i++)
-  {
-    int seed = std::random_device{}();
-    rng.seed(seed);
-    random_frame_of_density(p, frame, grid_size); // Initialize a random frame of density p.
-    //simulate_np(frame,grid_size,birth_probability,updates_per_site);
-    // simulate NP till it reaches steady state
-    for (int j=0; j<number_of_census; j++)
-    {
-      float k =0.0; //Stores size of spanning cluster(s).
-
-     	//simulate_np(frame,grid_size,birth_probability,lag); // simulate NP for an average of (lag) number of update per site
-     	average_cluster_size[i*number_of_census+ j] = find_average_cluster_size(frame, grid_size);
-      // find the average cluster size of the current frame (minus spanning cluster if present)
-
-      int labels[grid_size*grid_size] = {0}; // initialize all sites of label lattice to 0
-    	vector <cluster> clusters;
-
-    	find_clusters_free_boundary(frame, labels, clusters, grid_size);
-    	// Segregates clusters, populates labels lattice and accumulates clusters with free boundary conditions
-
-    	vector<float> cluster_sizes; // See cluster_dynamics.h for the data structure cluster. It has two attributes: label and coords.
-
-      vector<int> spanning_cluster_labels = spanning_cluster_label_id(frame, grid_size, labels, clusters);
-      //Stores list of spanning cluster IDs, -1 otherwise (if no spanning clusterfuck present).
-
-      if (spanning_cluster_labels[0] != -1)
-      {
-        //Spanning cluster(s) present
-        for (int r =0 ; r < spanning_cluster_labels.size(); r++)
-        {
-          k += (float) clusters[spanning_cluster_labels[r]-1].coords.size();
-        }
-      }
-      //Stores the number of vertices that belong to 2D spanning tree.
-      percolation_probabilities[i*number_of_census + j] = k/(grid_size*grid_size);
-
-      /*if ( i % 50 == 0)
-      {
-        output_dump(frame, grid_size, i, p, labels, clusters, spanning_cluster_labels);
-        // Dumps frame as CSV file
-      } */
-
-    }
-  }
-  for (int i=0; i< limit; i++)
-  {
-    zd_coordinates temp; //Creating a temporary variable.
-    //int trl_no = i % number_of_census + 1; int r_no = int(i/number_of_census);
-    temp.x = grid_size;
-    temp.y = percolation_probabilities[i];
-    temp.z = average_cluster_size[i];
-    comp_data.push_back(temp);
-  }
-}
-
-void finite_scaling_crtexp(int grid_sizes[], double p, string type, int divisions, int r_init, int number_of_census)
-{
-  //This method will find finite scaling relations for a given p ----------------> p_c.
-
-  //int r_init =25;
-  //number_of_census= 1;
-
-  type= "Nu";
-
-  std::vector<zd_coordinates> vec;
-  // Stores collated output from parallel method calls in proper scending order of grid sizes.
-  ofstream outputfinsc;
-  // Creating a file instance called output to store output data as CSV.
-
-  stringstream peon, div ,g1, g2;
-
-  peon << setprecision(4) << p;
-  //p_en << setprecision(3) << p_end;
-  // setprecision() is a stream manipulator that sets the decimal precision of a variable.
-  div << divisions;
-  g1 << grid_sizes[0];
-  g2 << grid_sizes[divisions-1];
-  if (type == "Nu" || type == "Gam")
-    {
-      outputfinsc.open("CrtExp/FinSc"+ type +"_DP_p_" + peon.str() + "_Div_" + div.str() + "_G1_"+ g1.str() + "_G2_"+ g2.str() + ".csv");
-    }
-  else
-    {
-      //Default is Beta/Gamma Computation.
-      outputfinsc.open("CrtExp/FinSc_DP_p_" + peon.str() + "_Div_" + div.str() + "_G1_"+ g1.str() + "_G2_"+ g2.str() + ".csv");
-    }
-
-  // Creating CSV file in "ACF" sub-directory to store output data
-
-  #pragma omp parallel
-  {
-      std::vector<zd_coordinates> vec_private;
-
-      //Grants a static schedule with a chunk size of 1.
-      /* Based on procedure suggested in:
-      https://stackoverflow.com/questions/18669296/c-openmp-parallel-for-loop-alternatives-to-stdvector */
-
-      #pragma omp for nowait schedule(static)
-      for (int i=0; i < divisions; i++)
-      {
-        //type="Gam";
-        stringstream message;     //To make cout thread-safe as well as non-garbled due to race conditions.
-        message << "We are working on Grid Size:\t" << grid_sizes[i] <<endl;
-        cout << message.str();
-        int seed = std::random_device{}();
-        rng.seed(seed);
-
-        std::vector<zd_coordinates> comp_data;
-
-        if(type == "Nu")
-        {
-          crtexp_nu(grid_sizes[i], comp_data, r_init, number_of_census);
-          //Finds and returns nu (critical exponent) related data for a given grid_size
-          // Returns {L, p, p^2}
-        }
-        else if(type =="Gam")
-        {
-          crtexp_gamma(grid_sizes[i], comp_data, p, r_init, number_of_census);
-          //Finds and returns gamma (critical exponent) related data for a given grid_size
-          // Returns {L, p, p^2}
-        }
-
-        vec_private.insert(vec_private.end(), comp_data.begin(), comp_data.end());
-
-      }
-
-      #pragma omp for schedule(static) ordered
-      for(int i=0; i< omp_get_num_threads(); i++)
-      {
-        #pragma omp ordered
-          vec.insert(vec.end(), vec_private.begin(), vec_private.end());
-          // Inserting critical exponent data for each grid size in order.
-          stringstream message3;
-          message3 << "Is this happening?\n";
-          cout << message3.str();
-
-      }
-  }
-  cout << "Game Over" << endl;
-  vector <vector<double>> output;
-  //Creating 2D vector to store final output
-
-  if(type == "Gam")
-  {
-    double trialno =1;
-    for(int i=0; i <vec.size(); i++)
-    {
-      if(vec[i].z < 1 && vec[i].y < 1 && vec[i].y >=0)
-      {
-        //Header line represented by row vector [# No, p, p]
-        trialno = vec[i].x;
-        continue;
-      }
-      output.push_back({p, vec[i].x, trialno, vec[i].y, vec[i].z});
-      //Filled as p, L, # No, s, n_s(p).
-    }
-  }
-  else
-  {
-    double trialno =1;
-    for(int i=0; i <vec.size(); i++)
-    {
-      int j = i % r_init;
-      int trl_no = j % number_of_census + 1; int r_no = int(j/number_of_census);
-      trialno = r_no*number_of_census + trl_no;
-
-      output.push_back({p, vec[i].x, trialno, vec[i].y, vec[i].z});
-      //Filled as p, L, # No, P(p), S(p)
-    }
-  }
-
-
-  //Printing out obtained results.
-  cout << "The vector elements are: "<< endl;
-  //cout << " p , L, # Tr No , P[p] ,  S[p]\n";
-  if(type == "Nu")
-  {
-    cout << " p , L, # Tr No , p ,  p^2 \n";
-    outputfinsc << " p , L, # Tr No , p ,  p^2 \n";
-  }
-  else if(type == "Gam")
-  {
-    cout << " p , L, # Tr No , s ,  s*n_s(p) \n";
-    outputfinsc << " p , L, # Tr No , s ,  s*n_s(p) \n";
-  }
-  else
-  {
-    cout << " p , L, # Tr No , s ,  ns_(p)\n";
-    outputfinsc << " p , L, # Tr No , P[p] ,  S[p]\n";
-  }
+    output.push_back({i, vec[i].x, vec[i].y, vec[i].z});
+  } */
+  cout << "The vector elements are: " << endl;
+  cout << "Time step , Max Correl Coeff , k ,  l,  p\n";
   for (int i = 0; i < output.size(); i++)
   {
-    cout << setprecision(8) << output[i][0] << "  " << setprecision(5) << output[i][1] << "  " << setprecision(3) << output[i][2] << "  " << setprecision(16) << output[i][3] << "  " << setprecision(16) << output[i][4] << endl;
+    cout << setprecision(8) << output[i][0] << "  " << setprecision(6) << output[i][1] << "\t" << setprecision(5) << output[i][2] << "  " << setprecision(5) << output[i][3] << setprecision(6) << output[i][4] << endl;
   }
+
   // Saving to aforementioned CSV
 
+  outputACF << "#Time step , Max Correl Coeff , k ,  l,  p\n";
   for (int i = 0; i < output.size(); i++)
   {
-    outputfinsc << setprecision(8) << output[i][0] << "," << setprecision(8) << output[i][1] << "," << setprecision(3) << output[i][2] << "," << setprecision(16) << output[i][3] << "," << setprecision(16) << output[i][4]  << endl;
+    outputACF << setprecision(12) << output[i][0] << "," << setprecision(6) << output[i][1] << "," << setprecision(8) << output[i][2] << "," << setprecision(8) << output[i][3] << setprecision(6) << output[i][4] << endl;
   }
-  outputfinsc.close();
-
+  outputACF.close();
 
 }
 
+/*
+coordinates foc_site; foc_site.x = static_cast<int>(changes[k]/(grid_size)); foc_site.y = changes[k]%(grid_size);
+coordinates neighbours[4]; find_neighbours_of_site(neighbours, foc_site, grid_size); // Retrun neighbours of focal site.
+int flag=0; //Flag set as 1 if focal site represents split/merge event, 0 otherwise.
 
-//-------------------------------- Critical Exponent Calculation [DP Model]----------------------------
+std::vector<int> non_zero_neighbours; //Stores non-zero neighbours within in aunit radius of focal site
+for(int i=0; i<4; i++)
+{ //Find non-zero neighbours
+  if(previous_frame_labels[neighbours[i].x*grid_size +neighbours[i].y] != 0)
+  { non_zero_neighbours.push_back(neighbours[i].x*grid_size +neighbours[i].y)}
 
-
-void crtexp_DP_Basic(int grid_size,vector<zd_coordinates> &comp_data, double p, int r_init, int length)
+}
+for(int i=0; i<non_zero_neighbours.size()-1; i++)
 {
-
-  /* We are following the Dynamic Monte Carlo alogrithms highlighted in
-     SECTION 3.4.3 (PG-- 867), Hirinschen 2000*/
-
-  int frame[grid_size*grid_size];
-  for (int i = 0; i < r_init ; i++)
+  if(previous_frame_labels[non_zero_neighbours[i]] != previous_frame_labels[non_zero_neighbours[i+1]])
   {
-    int seed = std::random_device{}();
-    rng.seed(seed);
-    solitary_droplet(frame, grid_size); // Creates a lone wolf tear in the fabric of the lattice.
-
-    zd_coordinates header; header.x= i+1; header.y = p; header.z = -1;
-    comp_data.push_back(header); //Serves as a header row, seperating any two random trials.
-
-    for(int j=0; j < length; j++)
-    {
-      //Looping over all the time steps, one at a time.
-      int n = number_of_elem_of_array(frame, grid_size);
-      //Checking if we are creamed or not.
-
-      zd_coordinates temp; //Creating a temporary variable.
-      temp.x = j;
-      temp.y = 0;
-      temp.z = 0;
-
-      if( n == 0)
-      {
-        //There are no active elements left, hence all P(t) and N(t) values for all
-        // subsequent time steps will be 0.
-
-        for(int k =j; k <length; k++)
-        {
-          temp.x = k;
-          comp_data.push_back(temp);
-        }
-        break;
-
-      }
-      else
-      {
-        temp.y = 1; //P(t) =1
-        temp.z = n; //N(t) > 0
-
-        comp_data.push_back(temp);
-      }
-
-      simulate_dp(frame, grid_size, p, 1);
-
-    }
-
+    // A merging of two distinct clusters definitely took place.
+    flag = 1;
   }
-
-
-
 }
 
-void crtexp_dynamo_dp(int grid_size, double p_start, double p_end, int divisions, int r_init, int length)
+if(flag == 0)
 {
-  /* THE POINT OF THIS FUNCTION IS TO FIRSTLY ASCERTAIN P_C, FOLLOWED BY DYNAMIC ASCERTATION OF
-     CERTAIN CRITICAL EXPONENTS (SECTION 3.4.3 (PG-- 867), Hirinschen 2000)*/
-
-  vector<double> p_space = linspace(p_start, p_end, divisions);
-  // The pspace to iterate over.
-
-  std::vector<zd_coordinates> vec;
-  // Stores collated output from parallel method calls in proper ascending order of p values.
-
-
-  stringstream g, div ,p1, p2, rini;
-
-  g << grid_size;
-  //p_en << setprecision(3) << p_end;
-  // setprecision() is a stream manipulator that sets the decimal precision of a variable.
-  div << divisions;
-  p1 << p_start;
-  p2 << p_end;
-  rini << r_init;
-
-  //output_dp.open("CrtExp/P_c_DP_G_" + g.str() + "_Div_" + div.str() + "_p1_"+ p1.str() + "_p2_"+ p2.str() + "_R_"+ rini.str() + ".csv");
-  // Creating CSV file.
-
-  #pragma omp parallel
-  {
-      std::vector<zd_coordinates> vec_private;
-
-      //Grants a static schedule with a chunk size of 1.
-      /* Based on procedure suggested in:
-      https://stackoverflow.com/questions/18669296/c-openmp-parallel-for-loop-alternatives-to-stdvector */
-
-      #pragma omp for nowait schedule(static)
-      for (int i=0; i < p_space.size(); i++)
-      {
-        //type="Gam";
-        stringstream message;     //To make cout thread-safe as well as non-garbled due to race conditions.
-        message << "We are working on P Value:\t" << p_space[i] <<endl;
-        cout << message.str();
-        int seed = std::random_device{}();
-        rng.seed(seed);
-
-        std::vector<zd_coordinates> comp_data;
-
-        crtexp_DP_Basic(grid_size, comp_data, p_space[i], r_init, length);
-
-        vec_private.insert(vec_private.end(), comp_data.begin(), comp_data.end());
-
-      }
-
-      #pragma omp for schedule(static) ordered
-      for(int i=0; i< omp_get_num_threads(); i++)
-      {
-        #pragma omp ordered
-          vec.insert(vec.end(), vec_private.begin(), vec_private.end());
-          // Inserting critical exponent data for each grid size in order.
-          stringstream message3;
-          message3 << "Is this happening?\n";
-          cout << message3.str();
-
-      }
-  }
-
-  vector <vector<double>> output; //Creating 2-D vector to store final output.
-
-  ofstream output_dp;
-  // Creating a file instance called output to store output data as CSV.
-
-  double trialno =1; double p= p_space[0];
-
-  stringstream pugalo; pugalo << setprecision(2) << p;
-  int chk= mkdir(("CrtExp/"+pugalo.str()).c_str(), 0777);
-  output_dp.open("CrtExp/"+pugalo.str()+"/P_c_DP_G_" + g.str() + "_Div_" + div.str() + "_p1_"+ p1.str() + "_R_"+ rini.str() + ".csv");
-  output_dp << " p , # Tr No , t ,  P(t) ,  N(t) \n";
-
-  for(int i=0; i <vec.size(); i++)
-  {
-    if(vec[i].z < 0 && vec[i].y < 1 && vec[i].y >= 0)
-    {
-      //Header line represented by row vector [# No, p, -1]
-
-      if(vec[i].y > p)
-      {
-        //New p value being accessed.
-        output_dp.close();
-        trialno = vec[i].x; p = vec[i].y;
-        stringstream p_new, p_final;
-        p_new << setprecision(2) << p;
-        p_final << p;
-
-        int chk= mkdir(("CrtExp/"+p_new.str()).c_str(), 0777);
-        output_dp.open("CrtExp/"+p_new.str()+"/P_c_DP_G_" + g.str() + "_Div_" + div.str() + "_p1_"+ p_final.str() + "_R_"+ rini.str() + ".csv");
-        output_dp << " p , # Tr No , t ,  P(t) ,  N(t) \n";
-      }
-
-      trialno = vec[i].x; p = vec[i].y;
-      continue;
-    }
-    output.push_back({p, trialno, vec[i].x, vec[i].y, vec[i].z});
-    //Filled as p, # No, t,  P(t), N(t).
-    output_dp << setprecision(8) << p << "," << setprecision(3) << trialno << "," << setprecision(5) << vec[i].x << "," << setprecision(3) << vec[i].y << "," << setprecision(12) << vec[i].z << endl;
-  }
-
-  cout << "The vector elements are: "<< endl;
-  //cout << " p , L, # Tr No , P[p] ,  S[p]\n";
-  cout << " p , # Tr No , t ,  P(t) ,  N(t) \n";
-
-
- for(int i=0; i <output.size(); i++)
- {
-   if( i%4800 ==1)
-   {
-     cout << setprecision(8) << output[i][0] << "  " << setprecision(3) << output[i][1] << "  " << setprecision(5) << output[i][2] << "  " << setprecision(2) << output[i][3] << "  " << setprecision(10) << output[i][4] << endl;
-   }
-   //output_dp << setprecision(8) << output[i][0] << "," << setprecision(3) << output[i][1] << "," << setprecision(5) << output[i][2] << "," << setprecision(3) << output[i][3] << "," << setprecision(12) << output[i][4] << endl;
-
- }
- output_dp.close();
-
+  //Unit increment has taken place.
+  transformation_merge.before = focal_cluster.coords.size() - 1;
+  transformation_merge.after = focal_cluster.coords.size();
+  transformations.push_back(transformation_merge);
+  continue;
 }
+*/
