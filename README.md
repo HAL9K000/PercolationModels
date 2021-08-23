@@ -4,7 +4,7 @@ This project --- and the code listed here --- has two primary functions. The fir
 
 *For a deeper look into the theory and the particulars of the algorithms, look at the Methods Section of this [document](https://drive.google.com/file/d/17A0xSbOQrUHNOF3O6vys0rPSrMBqjLdn/view?usp=sharing).*
 
-## Null Percolation (NP) & Directed Percolation (DP)
+## Null Percolation (NP) & Directed Percolation  (DP)
 
 We make use of the **stochastic cellular automata (SCA)**, which are lattice-based discrete-time random processes.
 
