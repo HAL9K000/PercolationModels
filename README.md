@@ -1,5 +1,8 @@
 # A Homebrewed Concotion For Spatial Cluster Dynamics in Vegetation.
 
+
+**The code in this repository is published under the open-access BSD 3 license. To learn more about what this entails, please refer to [this](https://opensource.org/licenses/BSD-3-Clause).**
+
 This project --- and the code listed here --- has two primary functions. The first is to determine the critical exponents associated with macroscopic observables in the various percolation systems (which we shall elaborate on to an extent in the following sections), while the second is to capture cluster dynamics between two temporal frames of the percolation system, which are spaced a variable time-steps apart.
 
 *For a deeper look into the theory and the particulars of the algorithms, look at the Methods Section of this [document](https://drive.google.com/file/d/17A0xSbOQrUHNOF3O6vys0rPSrMBqjLdn/view?usp=sharing).*
